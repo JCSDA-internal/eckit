@@ -11,6 +11,8 @@
 #ifndef eckit_mpi_Info_h
 #define eckit_mpi_Info_h
 
+#include <mpi.h>
+
 namespace eckit {
 namespace mpi {
 
@@ -19,7 +21,7 @@ namespace mpi {
 struct Info {
 
     enum Code {
-        INFO_NULL = 0,
+        INFO_NULL = MPI_INFO_NULL,
         MAX_INFO_CODE,
     };
 };
