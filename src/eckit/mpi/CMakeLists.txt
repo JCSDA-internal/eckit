@@ -4,8 +4,8 @@ Comm.cc
 Comm.h
 DataType.cc
 DataType.h
-Info.cc
 Info.h
+Info.cc
 Operation.cc
 Operation.h
 Request.cc
