@@ -22,7 +22,6 @@
 
 #include "eckit/mpi/Buffer.h"
 #include "eckit/mpi/DataType.h"
-#include "eckit/mpi/Info.h"
 #include "eckit/mpi/Operation.h"
 #include "eckit/mpi/Request.h"
 #include "eckit/mpi/Status.h"
@@ -110,6 +109,8 @@ public:  // methods
     virtual int anySource() const = 0;
 
     virtual int anyTag() const = 0;
+
+    virtual int infoNull() const = 0;
 
     virtual Status status() const = 0;
 
