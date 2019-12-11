@@ -1,10 +1,13 @@
-ecbuild_add_test(
-    TARGET      eckit_test_mpi
-    SOURCES     eckit_test_mpi.cc
-    CONDITION   HAVE_MPI
-    LIBS eckit_mpi
-    MPI 4
-)
+
+if( NOT (CMAKE_CXX_COMPILER_ID EQUAL "Intel" AND CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 19) )
+    ecbuild_add_test(
+        TARGET      eckit_test_mpi
+        SOURCES     eckit_test_mpi.cc
+        CONDITION   HAVE_MPI 
+        LIBS eckit_mpi
+        MPI 4
+    )
+endif()
 
  ecbuild_add_test(
     TARGET      eckit_test_mpi_addcomm
