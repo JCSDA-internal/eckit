@@ -23,8 +23,7 @@
 
 using namespace eckit::testing;
 
-namespace eckit {
-namespace test {
+namespace eckit_test { // Not eckit namespace on purpose to test downstream usage of macros
 
 typedef std::vector<Test> Tests;
 
@@ -43,16 +42,19 @@ void ThrowStd() {
     throw std::exception();
 }
 
+
 Tests tests = {{CASE("CASE with no EXPECT passes"){
 
                }},
 
                {CASE("EXPECT macros are defined correctly"){EXPECT(true);
 EXPECT_NOT(false);
+EXPECT_EQUAL(1, 1);
+EXPECT_NOT_EQUAL(1, 2);
 EXPECT_NO_THROW({ bool b = true; });
 EXPECT_THROWS(throw std::exception());
 EXPECT_THROWS_AS(throw std::exception(), std::exception);
-EXPECT_EQUAL(3, 3);
+EXPECT_MSG(1 == 1, [=]() { std::cerr << eckit::Colour::red << "1 != 1" << eckit::Colour::reset << std::endl; };);
 }  // namespace test
 }  // namespace eckit
 ,
@@ -109,25 +111,6 @@ EXPECT(1 == run(fail, TestVerbosity::Silent));
 }
 ,
 
-    {CASE("EXPECT_EQUAL causes an error to be reported on failure"){
-
-       Test fail = {CASE("F"){EXPECT_EQUAL(1, 2);
-}
-}
-;
-
-std::vector<std::string> f;
-bool ret = fail.run(TestVerbosity::Silent, f);
-if (ret || f.size() == 0) {
-  throw eckit::testing::TestException("No error reported when EXPECT_EQUAL failed", Here());
-}
-if (ret || f.size() > 1) {
-  throw eckit::testing::TestException("Too many errors reported when EXPECT_EQUAL failed", Here());
-}
-}
-}
-,
-
     {CASE("EXPECT succeeds for integer comparison"){EXPECT(7 == 7);
 EXPECT(7 != 8);
 EXPECT(7 >= 6);
@@ -140,7 +123,6 @@ EXPECT_NOT(7 <= 6);
 EXPECT_NOT(7 >= 8);
 EXPECT_NOT(7 < 6);
 EXPECT_NOT(7 > 8);
-EXPECT_EQUAL(7, 7);
 }
 }
 , {CASE("Expect succeeds for integer vs. real comparison"){EXPECT(7.0 == 7);
@@ -150,13 +132,13 @@ EXPECT(7 != 8.0);
 
 EXPECT_NOT(7.0 == 8);
 EXPECT_NOT(7 != 7.0);
-
-EXPECT_EQUAL(7, 7.0);
 }
 }
 ,
 
-    {CASE("Expect succeeds for string comparison"){std::string a("a");
+    {CASE("Expect succeeds for string comparison"){
+
+        std::string a("a");
 std::string b("b");
 
 EXPECT(a == a);
@@ -172,8 +154,6 @@ EXPECT_NOT(b <= a);
 EXPECT_NOT(a >= b);
 EXPECT_NOT(b < a);
 EXPECT_NOT(a > b);
-
-EXPECT_EQUAL(a, a);
 }
 }
 ,
@@ -293,7 +273,6 @@ SECTION("Compare Collections") {
     EXPECT_NOT(a != b);
     EXPECT_NOT(a > b);
     EXPECT_NOT(a < b);
-    EXPECT_EQUAL(a, b);
     a[0] = 0;
     EXPECT_NOT(a == b);
     EXPECT_NOT(a >= b);
@@ -372,15 +351,15 @@ EXPECT(!is_approximately_equal(d1, make_view(d2), 0.0001));             // vecto
 }
 ,
 }
-;
+;  // end of tests
+
 
 //----------------------------------------------------------------------------------------------------------------------
 
-}  // namespace test
 }  // namespace eckit
 
 
-using eckit::test::global_counters;
+using eckit_test::global_counters;
 
 
 int main(int argc, char* argv[]) {
@@ -394,7 +373,7 @@ int main(int argc, char* argv[]) {
     }
 
     eckit::Main::initialise(argc, argv);
-    int retval2 = eckit::testing::run_tests(eckit::test::tests, argc, argv);
+    int retval2 = eckit::testing::run_tests(eckit_test::tests, argc, argv);
 
     int retval3 = 0;
     if (global_counters[0] != 3 || global_counters[1] != 1 || global_counters[2] != 1 || global_counters[3] != 11 ||
