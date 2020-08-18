@@ -1,7 +1,7 @@
-%define api.pure
-%lex-param {void * scanner}
+%pure-parser
+%lex-param {yyscan_t scanner}
 %lex-param {eckit::sql::SQLSession* session}
-%parse-param {void * scanner}
+%parse-param {yyscan_t scanner}
 %parse-param {eckit::sql::SQLSession* session}
 
 %{
