@@ -219,12 +219,12 @@ public:
 
         eckit::ResizableMemoryStream s(b);
 
-        Obj o(s);
+        //Obj o(s);
 
-        eckit::Log::info() << "[" << me_ << "] "
-                           << "receiving from " << from << " --- " << o << std::endl;
+        //eckit::Log::info() << "[" << me_ << "] "
+        //                   << "receiving from " << from << " --- " << o << std::endl;
 
-        return o;
+        return Obj(s);
     }
 };
 
