@@ -65,6 +65,14 @@ char Configuration::separator() const {
     return separator_;
 }
 
+std::string Configuration::typeName(const std::string& name) const {
+    bool found     = false;
+    eckit::Value v = lookUp(name, found);
+    if (!found)
+        throw ConfigurationNotFound(name);
+    return v.typeName();
+}
+
 eckit::Value Configuration::lookUp(const std::string& s, bool& found) const {
     eckit::Tokenizer parse(separator_);
     std::vector<std::string> path;

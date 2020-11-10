@@ -104,6 +104,8 @@ public:  // methods
 
     char separator() const;
 
+    std::string typeName(const std::string&) const;
+
     // -- Overridden methods
 
     virtual bool has(const std::string& name) const;
