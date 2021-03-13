@@ -16,11 +16,13 @@
 #include "eckit/log/Log.h"
 #include "eckit/log/Progress.h"
 #include "eckit/log/Timer.h"
+#include "eckit/runtime/Metrics.h"
 #include "eckit/runtime/Monitor.h"
 #include "eckit/thread/AutoLock.h"
 #include "eckit/thread/MutexCond.h"
 #include "eckit/thread/Thread.h"
 #include "eckit/thread/ThreadControler.h"
+#include "eckit/value/Value.h"
 
 
 namespace eckit {
@@ -53,12 +55,7 @@ public:
 };
 
 DblBuffer::DblBuffer(long count, long size, TransferWatcher& watcher) :
-    count_(count),
-    bufSize_(size),
-    error_(false),
-    restart_(false),
-    restartFrom_(0),
-    watcher_(watcher) {
+    count_(count), bufSize_(size), error_(false), restart_(false), restartFrom_(0), watcher_(watcher) {
     Log::info() << "Double buffering: " << count_ << " buffers of " << Bytes(size) << " is " << Bytes(count * size)
                 << std::endl;
 }
@@ -92,19 +89,28 @@ Length DblBuffer::copy(DataHandle& in, DataHandle& out) {
 
     Length estimate = in.openForRead();
     AutoClose c1(in);
+    watcher_.fromHandleOpened();
     out.openForWrite(estimate);
     AutoClose c2(out);
+    watcher_.toHandleOpened();
 
-    Length total = estimate;
-
+    Length total  = estimate;
+    Length copied = 0;
 
     bool more = true;
     while (more) {
         more = false;
         try {
-            Length copied = copy(in, out, estimate);
+            copied = copy(in, out, estimate);
             Log::info() << "Copied: " << copied << ", estimate: " << estimate << std::endl;
-            if(estimate) ASSERT(copied == estimate);
+            if (estimate) {
+                if (copied != estimate) {
+                    std::ostringstream os;
+                    os << "DblBuffer::copy(), copied: " << copied << ", estimate: " << estimate;
+                    throw SeriousBug(os.str());
+                }
+                ASSERT(copied == estimate);
+            }
         }
         catch (RestartTransfer& retry) {
             Log::warning() << "Retrying transfer from " << retry.from() << " (" << Bytes(retry.from()) << ")"
@@ -117,7 +123,7 @@ Length DblBuffer::copy(DataHandle& in, DataHandle& out) {
     }
 
     Log::info() << "Transfer rate " << Bytes(estimate, timer) << std::endl;
-    return total;
+    return copied;
 }
 
 Length DblBuffer::copy(DataHandle& in, DataHandle& out, const Length& estimate) {
@@ -145,6 +151,7 @@ Length DblBuffer::copy(DataHandle& in, DataHandle& out, const Length& estimate) 
     Timer reader("Double buffer reader");
     double rate  = 0.;
     double first = 0.;
+
 
     watcher_.watch(nullptr, 0);
 
@@ -222,17 +229,18 @@ Length DblBuffer::copy(DataHandle& in, DataHandle& out, const Length& estimate) 
 
     PANIC(inBytes_ != outBytes_);
 
+    in.collectMetrics("source");
+    out.collectMetrics("target");
+    Metrics::set("size", inBytes_);
+    Metrics::set("read_time", rate);
+    Metrics::set("time", reader.elapsed());
+
     return inBytes_;
 }
 
 DblBufferTask::DblBufferTask(DataHandle& out, DblBuffer& owner, OneBuffer* buffers, const Length& estimate,
                              long parent) :
-    Thread(false),
-    owner_(owner),
-    out_(out),
-    estimate_(estimate),
-    buffers_(buffers),
-    parent_(parent) {}
+    Thread(false), owner_(owner), out_(out), estimate_(estimate), buffers_(buffers), parent_(parent) {}
 
 void DblBufferTask::run() {
     Monitor::instance().parent(parent_);
@@ -308,6 +316,8 @@ void DblBufferTask::run() {
     Log::info() << "Write rate " << Bytes(owner_.outBytes_ / rate) << "/s" << std::endl;
     if (rate != first)
         Log::info() << "Write rate no mount " << Bytes(owner_.outBytes_ / (rate - first)) << "/s" << std::endl;
+
+    Metrics::set("write_time", rate);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

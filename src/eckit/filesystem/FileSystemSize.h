@@ -9,24 +9,17 @@
  */
 
 #pragma once
-#ifndef eckit_filesystem_FileSystemSize_h
-#define eckit_filesystem_FileSystemSize_h
-
-//-----------------------------------------------------------------------------
 
 namespace eckit {
 
 //-----------------------------------------------------------------------------
 
 struct FileSystemSize {
-	unsigned long long available;
-	unsigned long long total;
-	FileSystemSize() : available(0), total(0) {}
+    unsigned long long available;
+    unsigned long long total;
+    FileSystemSize() : available(0), total(0) {}
 };
-
 
 //-----------------------------------------------------------------------------
 
-} // namespace eckit
-
-#endif // eckit_FileSystemSize_H
+}  // namespace eckit

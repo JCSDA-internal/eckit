@@ -8,74 +8,56 @@
  * does it submit to any jurisdiction.
  */
 
-// File thread/ThreadControler.h
-// Baudouin Raoult - ECMWF May 96
+/// @author Baudouin Raoult
+/// @author Tiago Quintino
+/// @date   May 96
 
 #ifndef eckit_ThreadControler_h
 #define eckit_ThreadControler_h
 
-#include "eckit/thread/MutexCond.h"
 #include "eckit/runtime/Task.h"
+#include "eckit/thread/MutexCond.h"
 
-//-----------------------------------------------------------------------------
 
 namespace eckit {
 
-//-----------------------------------------------------------------------------
-
+//----------------------------------------------------------------------------------------------------------------------
 
 class Thread;
 
 /// @note Don't subclass from ThreadControler but from Thread
 class ThreadControler : public Task {
 public:
+    /// @note ThreadControler takes ownership of Thread
+    explicit ThreadControler(Thread*, bool detached = true, size_t stack = 0);
 
-// -- Contructors
+    virtual ~ThreadControler() override;
 
-	/// @note ThreadControler takes ownership of Thread
-    ThreadControler(Thread*, bool detached = true, size_t stack = 0);
+    virtual void start() override;
+    virtual void stop() override;
+    virtual void kill() override;
+    virtual void wait() override;
+    virtual bool active() override;
 
-// -- Destructor
+protected:  // members
+    MutexCond cond_;
+    bool detached_;
 
-	~ThreadControler();
+private:  // members
+    pthread_t thread_;
+    Thread* proc_;
+    size_t stack_;
+    bool running_;
 
-// -- Overridden methods
+private:  // methods
+    void execute();
 
-	// From Task
-
-	virtual void start();
-	virtual void stop();
-	virtual void kill();
-	virtual void wait();
-	virtual bool active();
-
-protected:
-
-// -- Members
-
-	MutexCond  cond_;
-	bool       detached_;
-
-private:
-
-// -- Members
-
-    pthread_t   thread_;
-    Thread*     proc_;
-    size_t      stack_;
-    bool        running_;
-
-// -- Methods
-
-	void execute();
-
-    static void* startThread (void *data);
-
+    static void* startThread(void* data);
 };
 
 
 //-----------------------------------------------------------------------------
 
-} // namespace eckit
+}  // namespace eckit
 
 #endif

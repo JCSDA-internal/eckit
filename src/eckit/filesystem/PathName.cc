@@ -8,46 +8,34 @@
  * does it submit to any jurisdiction.
  */
 
-#include "eckit/filesystem/PathName.h"
+#include <string.h>
+
 #include "eckit/exception/Exceptions.h"
 #include "eckit/filesystem/BasePathName.h"
 #include "eckit/filesystem/BasePathNameT.h"
 #include "eckit/filesystem/LocalPathName.h"
-#include "eckit/filesystem/marsfs/MarsFSPath.h"
+#include "eckit/filesystem/PathName.h"
+#include "eckit/filesystem/PathNameFactory.h"
 #include "eckit/io/Length.h"
 #include "eckit/io/cluster/ClusterDisks.h"
 
 namespace eckit {
 
-
-static BasePathName* make(const std::string& p, bool tildeIsUserHome) {
-    if (p.find("marsfs:") == 0)
-        return new BasePathNameT<MarsFSPath>(p);
-
-    /*
-    const std::string& node = ClusterDisks::node(p);
-    if(node.length())
-        return new BasePathNameT<MarsFSPath>(std::string("marsfs://") + node +  p , ext);
-    */
-
-    return new BasePathNameT<LocalPathName>(p, tildeIsUserHome);
-}
-
 PathName::PathName(const char* p, bool tildeIsUserHome) {
-    path_ = make(p, tildeIsUserHome);
+    path_ = PathNameFactory::build(p, tildeIsUserHome);
 }
 
 PathName::PathName(const std::string& p, bool tildeIsUserHome) {
-    path_ = make(p, tildeIsUserHome);
+    path_ = PathNameFactory::build(p, tildeIsUserHome);
+}
+
+PathName::PathName(const std::string& type, const std::string& p, bool tildeIsUserHome) {
+    path_ = PathNameFactory::build(type, p, tildeIsUserHome);
 }
 
 PathName::PathName(const PathName& other) : path_(other.path_->clone()) {}
 
 PathName::PathName(const LocalPathName& other) : path_(new BasePathNameT<LocalPathName>(other)) {}
-
-PathName::PathName(const MarsFSPath& other):
-    path_(new BasePathNameT<MarsFSPath>(other)) {
-}
 
 PathName::PathName(BasePathName* path) : path_(path) {
     ASSERT(path);
@@ -224,6 +212,10 @@ PathName PathName::unique(const PathName& path) {
     return PathName(path.path_->unique());
 }
 
+const char* PathName::type() const {
+    return path_->type();
+}
+
 PathName PathName::dirName() const {
     return PathName(path_->dirName());
 }
@@ -326,29 +318,43 @@ void operator>>(Stream& s, PathName& path) {
     path = PathName(p);
 }
 
+// TODO: Read from ~etc/disk/...
+
+static const char* NAMES[] = {"/locked/",     "/transfer/", "/defrag/", "/temp/", "/obstmp/",
+                              "/infrequent/", "/prearc/",   "/cache/",  nullptr};
 
 std::string PathName::shorten(const std::string& s) {
-    // TODO: Read from ~etc/disk/...
 
+    size_t i = 0;
+    while (NAMES[i]) {
+        if (s.find(NAMES[i]) != std::string::npos) {
+            return std::string("...") + NAMES[i] + "...";
+        }
+        i++;
+    }
 
-    if (s.find("/locked/") != std::string::npos)
-        return ".../locked/...";
-    if (s.find("/transfer/") != std::string::npos)
-        return ".../transfer/...";
-    if (s.find("/defrag/") != std::string::npos)
-        return ".../defrag/...";
-    if (s.find("/temp/") != std::string::npos)
-        return ".../temp/...";
-    if (s.find("/obstmp/") != std::string::npos)
-        return ".../obstmp/...";
-    if (s.find("/infrequent/") != std::string::npos)
-        return ".../infrequent/...";
-    if (s.find("/prearc/") != std::string::npos)
-        return ".../prearc/...";
-    if (s.find("/cache/") != std::string::npos)
-        return ".../cache/...";
     return s.substr(0, 10) + "...";
 }
+
+std::string PathName::metricsTag(const std::string& name) {
+    PathName path(name);
+
+
+    size_t i = 0;
+    while (NAMES[i]) {
+        int pos = path.path().find(NAMES[i]);
+        if (pos != std::string::npos) {
+            std::ostringstream oss;
+            oss << path.node() << ":";
+            oss << path.path().substr(0, pos + ::strlen(NAMES[i]) - 1);
+            return oss.str();
+        }
+        i++;
+    }
+
+    return path.asString();
+}
+
 
 const std::string& PathName::node() const {
     return path_->node();

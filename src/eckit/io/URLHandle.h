@@ -14,80 +14,75 @@
 #ifndef eckit_filesystem_URLHandle_h
 #define eckit_filesystem_URLHandle_h
 
+#include <memory>
+
 #include "eckit/io/DataHandle.h"
-#include "eckit/io/CircularBuffer.h"
-#include "eckit/io/EasyCURL.h"
-
-
 
 namespace eckit {
 
 //----------------------------------------------------------------------------------------------------------------------
 
-class URLHandle : public DataHandle, private EasyCURL {
+class URLHandle : public DataHandle {
 public:
+    // -- Exceptions
 
-
-// -- Exceptions
-
-// -- Contructors
+    // -- Contructors
 
     URLHandle(const std::string& uri);
 
     URLHandle(Stream&);
 
-// -- Destructor
+    // -- Destructor
 
     ~URLHandle();
 
-// -- Overridden methods
+    // -- Overridden methods
 
     // From DataHandle
 
-    virtual Length openForRead();
-    virtual void openForWrite(const Length&);
-    virtual void openForAppend(const Length&);
+    virtual Length openForRead() override;
+    virtual void openForWrite(const Length&) override;
+    virtual void openForAppend(const Length&) override;
 
-    virtual long read(void*, long);
-    virtual long write(const void*, long);
-    virtual void close();
-    // virtual void rewind();
-    virtual void print(std::ostream&) const;
-    virtual Length estimate();
+    virtual long read(void*, long) override;
+    virtual long write(const void*, long) override;
+    virtual void close() override;
+    // virtual void rewind() override;
+    virtual void print(std::ostream&) const override;
+    virtual Length estimate() override;
+
+    virtual bool canSeek() const override { return false; }
 
     // From Streamable
 
-    virtual void encode(Stream&) const;
-    virtual const ReanimatorBase& reanimator() const { return reanimator_; }
+    virtual void encode(Stream&) const override;
+    virtual const ReanimatorBase& reanimator() const override { return reanimator_; }
 
-// -- Class methods
+    // -- Class methods
 
-    static  const ClassSpec&  classSpec()        { return classSpec_;}
+    static const ClassSpec& classSpec() { return classSpec_; }
 
 private:
-
-// -- Members
+    // -- Members
 
     std::string uri_;
-    CircularBuffer buffer_;
+    std::unique_ptr<DataHandle> handle_;
 
 
-// -- Methods
+    // -- Methods
 
-    void init();
+    DataHandle& handle();
 
-    virtual size_t writeCallback(void *ptr, size_t size);
 
-// -- Class members
+    // -- Class members
 
-    static  ClassSpec               classSpec_;
-    static  Reanimator<URLHandle>  reanimator_;
-
+    static ClassSpec classSpec_;
+    static Reanimator<URLHandle> reanimator_;
 };
 
 
 //----------------------------------------------------------------------------------------------------------------------
 
-} // namespace eckit
+}  // namespace eckit
 
 #endif

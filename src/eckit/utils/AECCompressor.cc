@@ -8,141 +8,170 @@
  * does it submit to any jurisdiction.
  */
 
-#include "libaec.h"
 #include "eckit/utils/AECCompressor.h"
+
+#include <cstring>
+
+extern "C" {  // libaec.h has c linkage
+#include "libaec.h"
+}
 
 #include "eckit/exception/Exceptions.h"
 #include "eckit/io/Buffer.h"
-#include "eckit/io/ResizableBuffer.h"
-
 
 // compression parameters heve been tuned for maximum compression ratio with GRIB2 3D fields.
 // Performance on GRIB 1 sfc fields is bad with any parameter values
 // https://sourceware.org/bzip2/manual/manual.html#bzcompress-init
-// bits_per_sample   range [1..32]  Storage size from sample size. If a sample requires less bits than the storage size provides, then you have to make sure that unused bits are not set.
-//                                  Libaec does not check this for performance reasons and will produce undefined output if unused bits are set.
-//                                   1 -  8 bits 	1 byte
-//                                   9 - 16 bits 	2 bytes
-//                                  17 - 24 bits 	3 bytes (only if AEC_DATA_3BYTE is set)
-//                                  25 - 32 bits 	4 bytes (if AEC_DATA_3BYTE is set)
-//                                  17 - 32 bits 	4 bytes (if AEC_DATA_3BYTE is not set)
-// block_size       range [8..64]   Smaller blocks allow the compression to adapt more rapidly to changing source statistics. Larger blocks create less overhead but can be less efficient if source statistics change across the block.
-// rsi                              Sets the reference sample interval. A large RSI will improve performance and efficiency. It will also increase memory requirements since internal buffering is based on RSI size.
-//                                  A smaller RSI may be desirable in situations where each RSI will be packetized and possible error propagation has to be minimized.
-#define AEC_bits_per_sample      16
-#define AEC_block_size           64
-#define AEC_rsi                 129
-#define AEC_flags               AEC_DATA_PREPROCESS | AEC_DATA_MSB
+//
+// bits_per_sample: range [1..32] Storage size from sample size. If a sample requires less bits than the storage size
+// provides, then you have to make sure that unused bits are not set. Libaec does not check this for performance reasons
+// and will produce undefined output if unused bits are set.
+// 1 -  8 bits 	1 byte
+// 9 - 16 bits 	2 bytes
+// 17 - 24 bits 	3 bytes (only if AEC_DATA_3BYTE is set)
+// 25 - 32 bits 	4 bytes (if AEC_DATA_3BYTE is set)
+// 17 - 32 bits 	4 bytes (if AEC_DATA_3BYTE is not set)
+// 
+// block_size: range [8..64] Smaller blocks allow the compression to adapt more rapidly to changing source
+// statistics. Larger blocks create less overhead but can be less efficient if source statistics change across the
+// block.
+//
+// rsi: sets the reference sample interval. A large RSI will improve performance and efficiency. It will also increase 
+// memory requirements since internal buffering is based on RSI size. A smaller RSI may be desirable in situations where
+// each RSI will be packetized and possible error propagation has to be minimized.
+
+
+#define AEC_bits_per_sample 16
+#define AEC_block_size 64
+#define AEC_rsi 129
+#define AEC_flags AEC_DATA_PREPROCESS | AEC_DATA_MSB
 
 
 namespace eckit {
 
 //----------------------------------------------------------------------------------------------------------------------
 
-AECCompressor::AECCompressor() {
+inline void AECCall(int code, const char* aec_func, const eckit::CodeLocation& loc) {
+    if (code != AEC_OK) {
+        std::ostringstream msg;
+        msg << "returned " << code;
+
+        switch( code ) {
+        case AEC_CONF_ERROR:
+            msg << " (AEC_CONF_ERROR)";
+            break;
+        case AEC_STREAM_ERROR:
+            msg << " (AEC_STREAM_ERROR)";
+            break;
+        case AEC_DATA_ERROR:
+            msg << " (AEC_DATA_ERROR)";
+            break;
+        case AEC_MEM_ERROR:
+            msg << " (AEC_MEM_ERROR)";
+            break;
+        default:
+            msg << " (UNRECOGNIZED ERROR)";
+        }
+        throw FailedLibraryCall("AEC", aec_func, msg.str(), loc);
+    }
 }
 
-AECCompressor::~AECCompressor() {
-}
+#define AEC_CALL(a) AECCall(a, #a, Here())
 
-size_t AECCompressor::minInputSize(const size_t inputSize, const aec_stream &strm) {
-    int blockSizeBytes = strm.bits_per_sample * strm.block_size / 8;
-    int minSize = (inputSize/blockSizeBytes);
+//----------------------------------------------------------------------------------------------------------------------
+
+AECCompressor::AECCompressor() {}
+
+AECCompressor::~AECCompressor() {}
+
+static size_t minInputSize(const size_t inputSize, const aec_stream& strm) {
+    size_t blockSizeBytes = strm.bits_per_sample * strm.block_size / 8;
+    size_t minSize        = (inputSize / blockSizeBytes);
     if (inputSize % blockSizeBytes > 0)
         minSize++;
 
     return minSize * blockSizeBytes;
 }
 
-size_t AECCompressor::compress(const eckit::Buffer& inTmp, ResizableBuffer& out) const{
-    std::ostringstream msg;
+size_t AECCompressor::compress(const void* inTmp, size_t len, Buffer& out) const {
 
     struct aec_stream strm;
 
-    strm.bits_per_sample    = AEC_bits_per_sample;
-    strm.block_size         = AEC_block_size;
-    strm.rsi                = AEC_rsi;
-    strm.flags              = AEC_flags;
+    strm.bits_per_sample = AEC_bits_per_sample;
+    strm.block_size      = AEC_block_size;
+    strm.rsi             = AEC_rsi;
+    strm.flags           = AEC_flags;
 
-    Buffer in(inTmp, minInputSize(inTmp.size(), strm));
+    Buffer in(minInputSize(len, strm));
+    in.copy(inTmp, len);
 
-    unsigned int maxcompressed = (size_t) (1.2*in.size());
-    if(out.size() < maxcompressed)
+    if( in.size() > len ) {
+        ::memset(in+len, 0, in.size() - len);
+    }
+
+    size_t maxcompressed = size_t(1.2 * in.size());
+    if (out.size() < maxcompressed) {
         out.resize(maxcompressed);
-    unsigned int bufferSize = out.size();
+    }
 
-    strm.next_in = (unsigned char *)in.data();
+    strm.next_in  = (unsigned char*)in.data();
     strm.avail_in = in.size();
 
-    strm.next_out = (unsigned char *)out.data();
-    strm.avail_out = bufferSize;
+    strm.next_out  = (unsigned char*)out.data();
+    strm.avail_out = out.size();
 
-    int ret = aec_encode_init(&strm);
-    if (ret != AEC_OK) {
-        msg << "returned " << ret;
-        throw FailedLibraryCall("AEC", "aec_encode_init", msg.str(), Here());
-    }
+    AEC_CALL( aec_encode_init(&strm) );
 
     // Perform encoding in one call and flush output.
     // you must be sure that the output buffer is large enough for all compressed output
-    ret = aec_encode(&strm, AEC_FLUSH);
-    if (ret!= AEC_OK) {
-        msg << "returned " << ret;
-        throw FailedLibraryCall("AEC", "aec_encode", msg.str(), Here());
-    }
+    AEC_CALL( aec_encode(&strm, AEC_FLUSH) );
+
     size_t outSize = strm.total_out;
 
     // free all resources used by encoder
-    ret = aec_encode_end(&strm);
-    if (ret == AEC_OK)
-        return outSize;
+    AEC_CALL( aec_encode_end(&strm) );
 
-    msg << "returned " << ret;
-    throw FailedLibraryCall("AEC", "aec_encode_end", msg.str(), Here());
+    return outSize;
 }
 
-size_t AECCompressor::uncompress(const eckit::Buffer& in, ResizableBuffer& out) const {
-    std::ostringstream msg;
-
-    // AEC assumes you have transmitted the original size separately
-    // We assume here that out is correctly sized
+void AECCompressor::uncompress(const void* in, size_t len, Buffer& out, size_t outlen) const {
 
     struct aec_stream strm;
 
-    strm.bits_per_sample    = AEC_bits_per_sample;
-    strm.block_size         = AEC_block_size;
-    strm.rsi                = AEC_rsi;
-    strm.flags              = AEC_flags;
+    strm.bits_per_sample = AEC_bits_per_sample;
+    strm.block_size      = AEC_block_size;
+    strm.rsi             = AEC_rsi;
+    strm.flags           = AEC_flags;
 
-    strm.next_in = (unsigned char *)in.data();
-    strm.avail_in = in.size();
+    strm.next_in  = (const unsigned char*)(in);
+    strm.avail_in = len;
 
-    Buffer outTmp(minInputSize(out.size(), strm));
+    size_t outSize = minInputSize(outlen, strm);
 
-    strm.next_out = (unsigned char *)outTmp.data();
-    strm.avail_out = outTmp.size();
+    // If out is sized large enough, we can use its extra capacity.
+    // Otherwise we allocate a temporary outTmp and at end we move outTmp into out.
 
-    int ret = aec_decode_init(&strm);
-    if (ret != AEC_OK) {
-        msg << "returned " << ret;
-        throw FailedLibraryCall("AEC", "aec_decode_init", msg.str(), Here());
+    Buffer outTmp;
+    if( out.size() >= outSize ) {
+        strm.next_out  = (unsigned char*)out.data();
     }
-
-    ret = aec_decode(&strm, AEC_FLUSH);
-    if (ret!= AEC_OK) {
-        msg << "returned " << ret;
-        throw FailedLibraryCall("AEC", "aec_decode", msg.str(), Here());
+    else {
+        outTmp.resize(outSize);
+        strm.next_out  = (unsigned char*)outTmp.data();
     }
-    size_t outSize = strm.total_out;
+    strm.avail_out = outSize;
 
-    // free all resources used by decoder
-    ret = aec_decode_end(&strm);
-    if (ret == AEC_OK) {
-        ::memcpy(out, outTmp, out.size());
-        return out.size();
+    AEC_CALL( aec_decode_init(&strm) );
+
+    AEC_CALL( aec_decode(&strm, AEC_FLUSH) );
+
+    ASSERT( strm.total_out == outSize );
+
+    AEC_CALL( aec_decode_end(&strm) );
+
+    if (outTmp.size()) {
+        out = std::move(outTmp);
     }
-    msg << "returned " << ret;
-    throw FailedLibraryCall("AEC", "aec_decode_end", msg.str(), Here());
 }
 
 CompressorBuilder<AECCompressor> aec("aec");

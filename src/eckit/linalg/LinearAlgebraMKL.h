@@ -17,7 +17,7 @@
 
 #include "eckit/eckit.h"
 
-#ifdef ECKIT_HAVE_MKL
+#if eckit_HAVE_MKL
 
 #include "eckit/linalg/LinearAlgebra.h"
 
@@ -32,7 +32,6 @@ public:
     LinearAlgebraMKL();
 
 private:
-
     // Overridden methods
 
     virtual Scalar dot(const Vector&, const Vector&) const;
@@ -42,15 +41,14 @@ private:
     virtual void spmm(const SparseMatrix&, const Matrix&, Matrix&) const;
     virtual void dsptd(const Vector&, const SparseMatrix&, const Vector&, SparseMatrix&) const;
 
-    virtual void print(std::ostream&) const;
-
+    virtual void print(std::ostream&) const override;
 };
 
 //-----------------------------------------------------------------------------
 
 }  // namespace linalg
-} // namespace eckit
+}  // namespace eckit
 
-#endif // HAVE_MKL
+#endif  // eckit_HAVE_MKL
 
 #endif

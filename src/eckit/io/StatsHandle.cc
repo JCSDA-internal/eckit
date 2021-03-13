@@ -11,7 +11,6 @@
 #include "eckit/eckit.h"
 
 #include "eckit/config/Resource.h"
-#include "eckit/filesystem/marsfs/MarsFSPath.h"
 #include "eckit/io/cluster/NodeInfo.h"
 #include "eckit/log/Bytes.h"
 #include "eckit/log/Log.h"
@@ -208,6 +207,10 @@ void StatsHandle::cost(std::map<std::string, Length>&, bool) const {
 
 std::string StatsHandle::title() const {
     return handle().title();
+}
+
+void StatsHandle::collectMetrics(const std::string& what) const {
+    handle().collectMetrics(what);
 }
 
 Length StatsHandle::saveInto(DataHandle& other, TransferWatcher& watcher) {

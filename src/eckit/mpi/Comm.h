@@ -104,8 +104,19 @@ public:  // methods
     /// @brief Wait for Request to be completed, ignoring the return status
     virtual Status wait(Request&) const = 0;
 
+    /// @brief Wait for one request out of a vector of requests to finish
+    ///
+    /// @param[in]  requests The requests that one will be waited for.
+    /// @param[out] index    The request index in requests that has been waited for.
+    virtual Status waitAny(std::vector<Request>& requests, int& index) const = 0;
+
+    /// @brief Wait for all given requests to finish
+    virtual std::vector<Status> waitAll(std::vector<Request>&) const = 0;
+
     /// @brief Probe for incoming messages (blocking)
     virtual Status probe(int source, int tag) const = 0;
+
+    virtual int undefined() const = 0;
 
     virtual int anySource() const = 0;
 
@@ -415,8 +426,8 @@ protected:
 
 template <class T>
 class CommBuilder : public CommFactory {
-    virtual Comm* make(const std::string& name) { return new T(name); }
-    virtual Comm* make(const std::string& name, int comm) { return new T(name, comm); }
+    virtual Comm* make(const std::string& name) override { return new T(name); }
+    virtual Comm* make(const std::string& name, int comm) override { return new T(name, comm); }
 
 public:
     CommBuilder(const std::string& builder) : CommFactory(builder) {}

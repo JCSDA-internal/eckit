@@ -24,7 +24,7 @@
 #include "eckit/os/Stat.h"
 #include "eckit/types/Types.h"
 
-#ifdef ECKIT_HAVE_AIO
+#ifdef eckit_HAVE_AIO
 #include <aio.h>
 #endif
 
@@ -32,12 +32,13 @@ namespace eckit {
 
 //----------------------------------------------------------------------------------------------------------------------
 
-#ifdef ECKIT_HAVE_AIO
+#ifdef eckit_HAVE_AIO
 
 struct AIOBuffer : private eckit::NonCopyable {
 
 public:  // methods
     explicit AIOBuffer() { eckit::zero(aio_); }
+    ~AIOBuffer() { delete buff_; }
 
     void resize(size_t sz) {
         if (buff_ == nullptr || buff_->size() < sz) {
@@ -243,7 +244,7 @@ void AIOHandle::flush() {
     }
 }
 
-#else  // NO ECKIT_HAVE_AIO
+#else  // NO eckit_HAVE_AIO
 
 struct AIOBuffer : private eckit::NonCopyable {};
 
@@ -264,7 +265,6 @@ void AIOHandle::flush() {
 //----------------------------------------------------------------------------------------------------------------------
 
 AIOHandle::~AIOHandle() {
-    close();
     for (size_t i = 0; i < count_; i++) {
         delete buffers_[i];
     }

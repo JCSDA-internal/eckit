@@ -21,9 +21,7 @@ namespace eckit {
 
 
 FileStream::FileStream(const PathName& name, const char* mode) :
-    file_(name.localPath(), mode),
-    read_(std::string(mode) == "r"),
-    name_(name) {}
+    file_(name.localPath(), mode), read_(std::string(mode) == "r"), name_(name) {}
 
 FileStream::~FileStream() {
     ASSERT_MSG(!file_.isOpen(), "FileStream being destructed is still open");
@@ -52,7 +50,7 @@ void FileStream::close() {
 
         // On Linux, you must also flush the directory
 
-#ifdef ECKIT_HAVE_DIRFD
+#ifdef eckit_HAVE_DIRFD
         PathName directory = PathName(name_).dirName();
         DIR* d             = ::opendir(directory.localPath());
         if (!d)

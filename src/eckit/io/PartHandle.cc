@@ -11,7 +11,6 @@
 #include <numeric>
 
 #include "eckit/config/Resource.h"
-#include "eckit/filesystem/marsfs/MarsFSPath.h"
 #include "eckit/io/cluster/NodeInfo.h"
 #include "eckit/log/Bytes.h"
 #include "eckit/log/Log.h"
@@ -46,10 +45,7 @@ void PartHandle::encode(Stream& s) const {
 }
 
 PartHandle::PartHandle(Stream& s) :
-    DataHandle(s),
-    HandleHolder(Reanimator<DataHandle>::reanimate(s)),
-    pos_(0),
-    index_(0) {
+    DataHandle(s), HandleHolder(Reanimator<DataHandle>::reanimate(s)), pos_(0), index_(0) {
     s >> offset_;
     s >> length_;
 
@@ -58,38 +54,22 @@ PartHandle::PartHandle(Stream& s) :
 
 
 PartHandle::PartHandle(DataHandle& handle, const OffsetList& offset, const LengthList& length) :
-    HandleHolder(handle),
-    pos_(0),
-    index_(0),
-    offset_(offset),
-    length_(length) {
+    HandleHolder(handle), pos_(0), index_(0), offset_(offset), length_(length) {
     ASSERT(offset_.size() == length_.size());
 }
 
 PartHandle::PartHandle(DataHandle* handle, const OffsetList& offset, const LengthList& length) :
-    HandleHolder(handle),
-    pos_(0),
-    index_(0),
-    offset_(offset),
-    length_(length) {
+    HandleHolder(handle), pos_(0), index_(0), offset_(offset), length_(length) {
     ASSERT(offset_.size() == length_.size());
 }
 
 PartHandle::PartHandle(DataHandle& handle, const Offset& offset, const Length& length) :
-    HandleHolder(handle),
-    pos_(0),
-    index_(0),
-    offset_(1, offset),
-    length_(1, length) {
+    HandleHolder(handle), pos_(0), index_(0), offset_(1, offset), length_(1, length) {
     ASSERT(offset_.size() == length_.size());
 }
 
 PartHandle::PartHandle(DataHandle* handle, const Offset& offset, const Length& length) :
-    HandleHolder(handle),
-    pos_(0),
-    index_(0),
-    offset_(1, offset),
-    length_(1, length) {
+    HandleHolder(handle), pos_(0), index_(0), offset_(1, offset), length_(1, length) {
     ASSERT(offset_.size() == length_.size());
 }
 

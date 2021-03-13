@@ -17,12 +17,14 @@
 #ifndef eckit_filesystem_PathName_h
 #define eckit_filesystem_PathName_h
 
+#include "eckit/filesystem/FileSystemSize.h"
 #include "eckit/io/Length.h"
 #include "eckit/io/Offset.h"
-#include "eckit/filesystem/FileSystemSize.h"
 #include "eckit/serialisation/Stream.h"
 #include "eckit/types/Types.h"
 
+#include <map>
+#include <mutex>
 
 namespace eckit {
 
@@ -31,27 +33,27 @@ class Length;
 class BasePathName;
 class DataHandle;
 class LocalPathName;
-class MarsFSPath;
 class FileMode;
 
 // The class PathName represent a unix path name.
 
 class PathName {
 public:
+    friend void operator<<(Stream&, const PathName&);
+    friend void operator>>(Stream&, PathName&);
 
-    friend void operator<<(Stream&,const PathName&);
-    friend void operator>>(Stream&,PathName&);
-
-    friend std::ostream& operator<<(std::ostream& s,const PathName& p)
-    { p.print(s); return s; }
+    friend std::ostream& operator<<(std::ostream& s, const PathName& p) {
+        p.print(s);
+        return s;
+    }
 
     // Contructors
 
     PathName(const char* p = "/", bool tildeIsUserHome = false);
     PathName(const std::string& p, bool tildeIsUserHome = false);
+    PathName(const std::string& type, const std::string& p, bool tildeIsUserHome = false);
     PathName(const PathName& p);
     PathName(const LocalPathName&);
-    PathName(const MarsFSPath&);
 
     // Destructor
     ~PathName();
@@ -88,6 +90,9 @@ public:
     bool operator==(const PathName& other) const;
 
     // Methods
+
+    /// What type of PathName object is this
+    const char* type() const;
 
     /// Directory part of the path
     /// @return directory part of the path
@@ -129,7 +134,7 @@ public:
 
     /// Last access time
     /// @return Time of last access
-    time_t lastAccess()   const;
+    time_t lastAccess() const;
 
     /// Last modification time
     /// @return Time of last modification
@@ -137,7 +142,7 @@ public:
 
     /// Creation time
     /// @return Time of creation
-    time_t created()      const;
+    time_t created() const;
 
     /// File owner
     /// @return Owner ID
@@ -167,10 +172,10 @@ public:
     void chmod(const FileMode& mode) const;
 
     /// Unlink the path
-    void unlink(bool verbose=true) const;
+    void unlink(bool verbose = true) const;
 
     /// Remove the directory
-    void rmdir(bool verbose=true) const;
+    void rmdir(bool verbose = true) const;
 
     /// Synchronise the parent directory entries to persistent storage
     void syncParentDirectory() const;
@@ -221,15 +226,15 @@ public:
     // Class methods
 
     static PathName unique(const PathName&);
-    static void match(const PathName&, std::vector<PathName>&,bool=false);
+    static void match(const PathName&, std::vector<PathName>&, bool = false);
     static void link(const PathName& from, const PathName& to);
     static void rename(const PathName& from, const PathName& to);
     static void rename(const PathName& from, const std::string& newBase);
 
     static std::string shorten(const std::string&);
+    static std::string metricsTag(const std::string&);
 
 private:
-
     PathName(BasePathName*);
 
     // Members
@@ -244,18 +249,20 @@ private:
 
     // friend
 
-    friend PathName operator+(const PathName& p,const std::string& s);
-    friend PathName operator+(const PathName& p,const char* s);
-    friend PathName operator+(const PathName& p,char s);
+    friend PathName operator+(const PathName& p, const std::string& s);
+    friend PathName operator+(const PathName& p, const char* s);
+    friend PathName operator+(const PathName& p, char s);
 
-    friend PathName operator/(const PathName& p,const std::string& s);
-    friend PathName operator/(const PathName& p,const char* s);
-    friend PathName operator/(const PathName& p,char s);
+    friend PathName operator/(const PathName& p, const std::string& s);
+    friend PathName operator/(const PathName& p, const char* s);
+    friend PathName operator/(const PathName& p, char s);
 };
 
-template <> struct VectorPrintSelector<PathName> { typedef VectorPrintSimple selector; };
+template <>
+struct VectorPrintSelector<PathName> {
+    typedef VectorPrintSimple selector;
+};
 
-
-} // namespace eckit
+}  // namespace eckit
 
 #endif

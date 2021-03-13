@@ -13,13 +13,9 @@ ecbuild_add_test( TARGET   eckit_test_filepool
                   SOURCES  test_filepool.cc
                   LIBS     eckit )
 
-ecbuild_add_test( TARGET  eckit_test_datablob
-                  SOURCES test_datablob.cc
-                  LIBS    eckit )
-
 ecbuild_add_test( TARGET  eckit_test_urlhandle
                   SOURCES test_urlhandle.cc
-                  CONDITION ECKIT_HAVE_CURL AND OFF
+                  CONDITION eckit_HAVE_CURL AND OFF
                   LIBS    eckit )
 
 ecbuild_add_test( TARGET  eckit_test_circularbuffer
@@ -42,12 +38,24 @@ ecbuild_add_test( TARGET      eckit_test_multihandle
                   SOURCES     test_multihandle.cc
                   LIBS        eckit )
 
+ecbuild_add_test( TARGET      eckit_test_partfilehandle
+                  SOURCES     test_partfilehandle.cc
+                  LIBS        eckit )
+
 ecbuild_add_test( TARGET      eckit_test_pooledfile
                   SOURCES     test_pooledfile.cc
                   LIBS        eckit )
 
 ecbuild_add_test( TARGET      eckit_test_pooledhandle
                   SOURCES     test_pooledhandle.cc
+                  LIBS        eckit )
+
+ecbuild_add_test( TARGET      eckit_test_buffer
+                  SOURCES     test_buffer.cc
+                  LIBS        eckit )
+
+ecbuild_add_test( TARGET      eckit_test_bufferlist
+                  SOURCES     test_bufferlist.cc
                   LIBS        eckit )
 
 ecbuild_add_test( TARGET      eckit_test_radoshandle

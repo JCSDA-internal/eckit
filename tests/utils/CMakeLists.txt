@@ -13,6 +13,10 @@ if(HAVE_EXTRA_TESTS)
                                     NOCHECK )
 endif()
 
+ecbuild_add_test( TARGET      eckit_test_utils_byteswap
+                  SOURCES     test_byteswap.cc
+                  LIBS        eckit )
+
 ecbuild_add_test( TARGET      eckit_test_utils_string_tools
                   SOURCES     test_string_tools.cc
                   LIBS        eckit )
@@ -25,6 +29,10 @@ ecbuild_add_test( TARGET      eckit_test_utils_tokenizer
                   SOURCES     test_tokenizer.cc
                   LIBS        eckit )
 
+ecbuild_add_test( TARGET      eckit_test_utils_semanticversion
+                  SOURCES     test_semanticversion.cc
+                  LIBS        eckit )
+
 ecbuild_add_test( TARGET      eckit_test_utils_rendezvoushash
                   SOURCES     test_rendezvoushash.cc
                   LIBS        eckit )
@@ -34,7 +42,7 @@ ecbuild_add_test( TARGET      eckit_test_utils_compressor
                   LIBS        eckit )
 
 ecbuild_add_test( TARGET      eckit_test_utils_hashing
-                  CONDITION   ECKIT_HAVE_SSL
+                  CONDITION   eckit_HAVE_SSL
                   INCLUDES    "${OPENSSL_INCLUDE_DIR}"
                   SOURCES     test_hashing.cc
                   LIBS        eckit )

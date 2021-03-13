@@ -11,7 +11,6 @@
 #include "eckit/eckit.h"
 
 #include "eckit/config/Resource.h"
-#include "eckit/filesystem/marsfs/MarsFSPath.h"
 #include "eckit/io/cluster/NodeInfo.h"
 #include "eckit/log/Bytes.h"
 #include "eckit/log/Log.h"
@@ -82,6 +81,10 @@ Offset SharedHandle::seek(const Offset& o) {
     return handle_.seek(o);
 }
 
+bool SharedHandle::canSeek() const {
+    return handle_.canSeek();
+}
+
 void SharedHandle::skip(const Length& n) {
     return handle_.skip(n);
 }
@@ -142,6 +145,10 @@ void SharedHandle::cost(std::map<std::string, Length>&, bool) const {
 
 std::string SharedHandle::title() const {
     return handle_.title();
+}
+
+void SharedHandle::collectMetrics(const std::string& what) const {
+    handle_.collectMetrics(what);
 }
 
 Length SharedHandle::saveInto(DataHandle& other, TransferWatcher& watcher) {

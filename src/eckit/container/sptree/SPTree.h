@@ -57,9 +57,7 @@ public:
         alloc_.setMetadata(meta_);
     }
 
-    NodeInfo nodeByID(ID id) {
-        return SPNodeInfo<Traits, NodeType>(alloc_.convert(id, (Node*)0), id, 0.0);
-    }
+    NodeInfo nodeByID(ID id) { return SPNodeInfo<Traits, NodeType>(alloc_.convert(id, (Node*)0), id, 0.0); }
 
     void getMetadata(Point& offset, Point& scale) {
         alloc_.getMetadata(meta_);
@@ -147,6 +145,9 @@ public:
     }
 
     iterator begin() {
+        if (empty()) {
+            return end();
+        }
         if (!root_) {
             root_ = alloc_.root();
         }
@@ -155,6 +156,10 @@ public:
     }
 
     iterator end() { return iterator(alloc_, 0); }
+
+    bool empty() const { return size() == 0; }
+
+    size_t size() const { return alloc_.nbItems(); }
 };
 
 }  // namespace eckit

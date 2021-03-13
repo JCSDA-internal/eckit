@@ -8,6 +8,8 @@
  * does it submit to any jurisdiction.
  */
 
+#include "eckit/eckit_config.h"
+
 #include "eckit/exception/Exceptions.h"
 #include "eckit/log/JSON.h"
 #include "eckit/parser/YAMLParser.h"
@@ -353,11 +355,168 @@ CASE("test_eckit_yaml_27") {
 //     std::cout << toJSON(v) << std::endl;
 // }
 
+// Verify that numeric literals are detected correctly
+CASE( "test_eckit_yaml_29" ) {
+    EXPECT_EQUAL(YAMLParser::decodeString("1").typeName(), "Number");
+    EXPECT_EQUAL(YAMLParser::decodeString("12").typeName(), "Number");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12.").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString(".1").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString(".12").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12.3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.23").typeName(), "Double");
+
+    EXPECT_EQUAL(YAMLParser::decodeString("1e2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12e3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.e2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12.e3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString(".1e2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString(".12e3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.2e3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12.3e4").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.23e4").typeName(), "Double");
+
+    EXPECT_EQUAL(YAMLParser::decodeString("1e-2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12e-3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.e-2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12.e-3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString(".1e-2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString(".12e-3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.2e-3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12.3e-4").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.23e-4").typeName(), "Double");
+
+    EXPECT_EQUAL(YAMLParser::decodeString("1e23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12e34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.e23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12.e34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString(".1e23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString(".12e34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.2e34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12.3e45").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.23e45").typeName(), "Double");
+
+    EXPECT_EQUAL(YAMLParser::decodeString("1e-23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12e-34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.e-23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12.e-34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString(".1e-23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString(".12e-34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.2e-34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("12.3e-45").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("1.23e-45").typeName(), "Double");
+
+    EXPECT_EQUAL(YAMLParser::decodeString("-1").typeName(), "Number");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12").typeName(), "Number");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12.").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.1").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.12").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12.3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.23").typeName(), "Double");
+
+    EXPECT_EQUAL(YAMLParser::decodeString("-1e2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12e3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.e2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12.e3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.1e2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.12e3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.2e3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12.3e4").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.23e4").typeName(), "Double");
+
+    EXPECT_EQUAL(YAMLParser::decodeString("-1e-2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12e-3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.e-2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12.e-3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.1e-2").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.12e-3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.2e-3").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12.3e-4").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.23e-4").typeName(), "Double");
+
+    EXPECT_EQUAL(YAMLParser::decodeString("-1e23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12e34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.e23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12.e34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.1e23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.12e34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.2e34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12.3e45").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.23e45").typeName(), "Double");
+
+    EXPECT_EQUAL(YAMLParser::decodeString("-1e-23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12e-34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.e-23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12.e-34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.1e-23").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.12e-34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.2e-34").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-12.3e-45").typeName(), "Double");
+    EXPECT_EQUAL(YAMLParser::decodeString("-1.23e-45").typeName(), "Double");
+
+    EXPECT_EQUAL(YAMLParser::decodeString(".").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("e").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("e1").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("e12").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("e-1").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("e-12").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString(".e1").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString(".e12").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString(".e-1").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString(".e-12").typeName(), "String");
+
+    EXPECT_EQUAL(YAMLParser::decodeString("-.").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("-e").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("-e1").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("-e12").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("-e-1").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("-e-12").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.e1").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.e12").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.e-1").typeName(), "String");
+    EXPECT_EQUAL(YAMLParser::decodeString("-.e-12").typeName(), "String");
+}
+
 CASE("test_eckit_yaml_cfg_1") {
     Value v = YAMLParser::decodeFile("cfg.1.yaml");
     std::cout << "cfg.1.yaml " << v << std::endl;
     std::cout << toJSON(v) << std::endl;
 }
+
+#ifdef eckit_HAVE_UNICODE
+CASE("test_eckit_yaml_unicode") {
+    Value v = YAMLParser::decodeFile("unicode.yaml");
+    EXPECT(v["test1"] == v["test2"]);
+}
+#endif  // eckit_HAVE_UNICODE
+
+CASE("test_eckit_yaml_comment_in_string") {
+    Value v = YAMLParser::decodeFile("string.yaml");
+    std::cout << toJSON(v) << std::endl;
+    EXPECT(v["test1"] == "#fff");
+    EXPECT(v["test2"] == "#aaa");
+
+    std::string e = "starts here and continues here and more";
+
+    EXPECT(v["test3"] == e);
+    EXPECT(v["test4"][0] == e);
+    EXPECT(v["test5"]["test6"] == e);
+
+    EXPECT(v["test6"] == "Quotes in 'strings' are special");
+
+
+    EXPECT(bool(v["bool1"]) == true);
+    EXPECT(bool(v["bool2"]) == false);
+    EXPECT(bool(v["bool3"]) == true);
+    EXPECT(bool(v["bool4"]) == false);
+    EXPECT(bool(v["bool5"]) == true);
+    EXPECT(bool(v["bool6"]) == false);
+
+}
+
 
 /// @todo FIX this test
 
@@ -463,17 +622,17 @@ CASE("test_eckit_yaml_text_5") {
     // }
 }
 
-CASE("test_eckit_yaml_text_6") {
+// CASE("test_eckit_yaml_text_6") {
 
-    const char* text = R"YAML(
----
-foo:
-    bar: 1
-  spam: true
-)YAML";
+//     const char* text = R"YAML(
+// ---
+// foo:
+//     bar: 1
+//   spam: true
+// )YAML";
 
-    EXPECT_THROWS_AS(YAMLParser::decodeString(text), eckit::SeriousBug);
-}
+//     EXPECT_THROWS_AS(YAMLParser::decodeString(text), eckit::SeriousBug);
+// }
 
 #endif
 

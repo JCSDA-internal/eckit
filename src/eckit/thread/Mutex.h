@@ -8,8 +8,9 @@
  * does it submit to any jurisdiction.
  */
 
-// File Mutex.h
-// Baudouin Raoult - ECMWF May 96
+/// @author Baudouin Raoult
+/// @author Tiago Quintino
+/// @date May 96
 
 #ifndef eckit_Mutex_h
 #define eckit_Mutex_h
@@ -18,40 +19,34 @@
 
 #include "eckit/memory/NonCopyable.h"
 
-
 namespace eckit {
 
 //----------------------------------------------------------------------------------------------------------------------
 
+/// Reentrant Mutex
+/// In addition to std::reentrant_mutex this checks valida construction before usage
+/// and add an optional tag, both of which can be useful when debugging,
+/// especially when dealing with construction before main() execution (eg self-registration classes)
 class Mutex : private NonCopyable {
+public:  // methods
 
-public: // methods
+    Mutex(char tag = ' ');
 
-// -- Contructors
+    ~Mutex();
 
-	Mutex(char tag = ' ');
+    void lock();
+    void unlock();
+    bool tryLock();
+    char tag() const { return tag_; }
 
-// -- Destructor
-
-	~Mutex();
-
-// -- Methods
-
-	void lock();
-	void unlock();
-	bool tryLock();
-	char tag() const { return tag_; }
-
-protected: // members
-
-	pthread_mutex_t mutex_;
-	bool            exists_;
-	char            tag_;
-
+protected:  // members
+    pthread_mutex_t mutex_;
+    bool exists_;
+    char tag_;
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
-} // namespace eckit
+}  // namespace eckit
 
 #endif

@@ -8,10 +8,11 @@
  * does it submit to any jurisdiction.
  */
 
+#include <limits>
 
 #include "eckit/value/DoubleContent.h"
-#include "eckit/maths/Functions.h"
 #include "eckit/log/JSON.h"
+#include "eckit/maths/Functions.h"
 #include "eckit/utils/Translator.h"
 #include "eckit/value/NumberContent.h"
 
@@ -72,6 +73,21 @@ int DoubleContent::compareNumber(const NumberContent& other) const {
 
 void DoubleContent::value(double& l) const {
     l = value_;
+}
+
+void DoubleContent::value(long long& l) const {
+    // Avoid FE_INVALID by checking if value_ is within valid range of long long
+    constexpr double min = double(std::numeric_limits<long long>::min());
+    constexpr double max = double(std::numeric_limits<long long>::max());
+    if( value_ <= min || value_ >= max ) {
+        Content::value(l); // throws BadConversion
+        return;
+    }
+    // Now safe to assign without FE_INVALID
+    l = value_;
+    if(l != value_) {
+        Content::value(l); // throws BadConversion
+    }
 }
 
 void DoubleContent::value(std::string& s) const {

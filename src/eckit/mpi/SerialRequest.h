@@ -12,64 +12,65 @@
 #define eckit_mpi_SerialRequest_h
 
 #include "eckit/io/Buffer.h"
-#include "eckit/mpi/Request.h"
 #include "eckit/mpi/DataType.h"
+#include "eckit/mpi/Request.h"
 
 namespace eckit {
 namespace mpi {
 
-  class SerialRequestPool;
+class SerialRequestPool;
+class Serial;
 
 //----------------------------------------------------------------------------------------------------------------------
 
 class SerialRequest : public RequestContent {
 
-public: // methods
-
+public:  // methods
     SerialRequest();
 
-    virtual ~SerialRequest();
+    virtual ~SerialRequest() override;
 
-    virtual int request() const;
+    virtual int request() const override;
 
     virtual int tag() const = 0;
 
     virtual bool isReceive() const = 0;
 
-    virtual bool test() { return true; }
+    virtual bool test() override { return true; }
 
-private: // methods
+private:  // methods
+    virtual void print(std::ostream&) const override;
 
-    virtual void print(std::ostream&) const;
+    bool handled() const { return handled_; }
+    void handled(bool v) { handled_ = v; }
 
-private: // members
-
+private:  // members
     friend class SerialRequestPool;
+    friend class Serial;
     int request_;
+    bool handled_{false};
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
 class SendRequest : public SerialRequest {
 
-public: // methods
-
+public:  // methods
     SendRequest(const void* buffer, size_t count, Data::Code type, int tag);
 
-    virtual ~SendRequest();
+    virtual ~SendRequest() override;
 
-    virtual bool isReceive() const { return false; }
+    virtual bool isReceive() const override { return false; }
 
     const void* buffer() const { return buffer_; }
 
     size_t count() const { return count_; }
 
-    virtual int tag() const { return tag_; }
+    virtual int tag() const override { return tag_; }
 
     Data::Code type() const { return type_; }
 
 private:
-
     eckit::Buffer buffer_;
     size_t count_;
     int tag_;
@@ -80,8 +81,7 @@ private:
 
 class ReceiveRequest : public SerialRequest {
 
-public: // methods
-
+public:  // methods
     ReceiveRequest(void* buffer, size_t count, Data::Code type, int tag);
 
     virtual bool isReceive() const { return true; }
@@ -98,9 +98,7 @@ public: // methods
     Data::Code type() const { return type_; }
 
 private:
-
     void* buffer_;
-    size_t size_;
     size_t count_;
     int tag_;
     Data::Code type_;

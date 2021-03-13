@@ -13,19 +13,13 @@
 #include "eckit/exception/Exceptions.h"
 #include "eckit/io/CircularBuffer.h"
 #include "eckit/maths/Functions.h"
-#include "eckit/memory/MemoryPool.h"
 #include "eckit/thread/AutoLock.h"
 
 namespace eckit {
 
 
 CircularBuffer::CircularBuffer(size_t size, size_t capacity) :
-    buffer_(new char[size]),
-    increment_(size),
-    size_(size),
-    capacity_(capacity),
-    pos_(0),
-    used_(0) {
+    buffer_(new char[size]), increment_(size), size_(size), capacity_(capacity), pos_(0), used_(0) {
     ASSERT(buffer_);
     ASSERT(size_ <= capacity_);
 }
@@ -48,6 +42,8 @@ size_t CircularBuffer::write(const void* buffer, size_t length) {
 
     if (length > left) {
         size_t newsize = eckit::round(size_ + length, increment_);
+
+        // std::cout << "CircularBuffer::resize(" << size_ << " => " << newsize << std::endl;
 
         if (newsize > capacity_) {
             std::ostringstream oss;
@@ -127,6 +123,11 @@ void CircularBuffer::clear() {
 size_t CircularBuffer::capacity() const {
     AutoLock<Mutex> lock(mutex_);
     return capacity_;
+}
+
+size_t CircularBuffer::size() const {
+    AutoLock<Mutex> lock(mutex_);
+    return size_;
 }
 
 

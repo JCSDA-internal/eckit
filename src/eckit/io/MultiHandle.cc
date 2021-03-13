@@ -14,6 +14,7 @@
 #include "eckit/io/MultiHandle.h"
 #include "eckit/log/Timer.h"
 #include "eckit/types/Types.h"
+#include "eckit/runtime/Metrics.h"
 
 namespace eckit {
 
@@ -28,9 +29,7 @@ Reanimator<MultiHandle> MultiHandle::reanimator_;
 MultiHandle::MultiHandle() : current_(datahandles_.end()), read_(false) {}
 
 MultiHandle::MultiHandle(const std::vector<DataHandle*>& v) :
-    datahandles_(v),
-    current_(datahandles_.end()),
-    read_(false) {}
+    datahandles_(v), current_(datahandles_.end()), read_(false) {}
 
 MultiHandle::MultiHandle(Stream& s) : DataHandle(s), read_(false) {
     unsigned long size;
@@ -50,18 +49,20 @@ MultiHandle::MultiHandle(Stream& s) : DataHandle(s), read_(false) {
 void MultiHandle::encode(Stream& s) const {
     DataHandle::encode(s);
     s << datahandles_.size();
-    for (size_t i = 0; i < datahandles_.size(); i++)
+    for (size_t i = 0; i < datahandles_.size(); i++) {
         s << *(datahandles_[i]);
+    }
     s << length_;
 }
 
 MultiHandle::~MultiHandle() {
-    for (size_t i = 0; i < datahandles_.size(); i++)
+    for (size_t i = 0; i < datahandles_.size(); i++) {
         delete datahandles_[i];
+    }
 }
 
 void MultiHandle::operator+=(DataHandle* dh) {
-    ASSERT(dh != 0);
+    ASSERT(dh != nullptr);
 
     // Try to merge with self
 
@@ -78,7 +79,6 @@ void MultiHandle::operator+=(DataHandle* dh) {
             return;
         }
     }
-
 
     // Add to end
     datahandles_.push_back(dh);
@@ -112,7 +112,6 @@ void MultiHandle::openForWrite(const Length& length) {
     current_ = datahandles_.begin();
     curlen_  = length_.begin();
     openCurrent();
-
 
     written_ = 0;
 
@@ -156,7 +155,7 @@ long MultiHandle::read1(char* buffer, long length) {
 }
 
 long MultiHandle::read(void* buffer, long length) {
-    char* p    = (char*)buffer;
+    char* p    = static_cast<char*>(buffer);
     long n     = 0;
     long total = 0;
 
@@ -173,7 +172,7 @@ long MultiHandle::read(void* buffer, long length) {
 
 long MultiHandle::write(const void* buffer, long length) {
     Length len = std::min(Length(*curlen_ - written_), Length(length));
-    long l     = (long)len;
+    long l     = static_cast<long>(len);
 
     ASSERT(len == Length(l));
     ASSERT((*current_));
@@ -205,8 +204,8 @@ long MultiHandle::write(const void* buffer, long length) {
 
             ASSERT(current_ != datahandles_.end());
 
-            char* p = (char*)buffer;
-            long m  = write((void*)(p + l), length - l);
+            const void* pl = static_cast<const char*>(buffer) + l;
+            long m         = write(pl, length - l);
             return (m > 0 ? n + m : n);
         }
     }
@@ -298,59 +297,70 @@ DataHandle* MultiHandle::clone() const {
     return mh;
 }
 
-Offset MultiHandle::position() {
-    long long position = 0;
-    for (HandleList::iterator it = datahandles_.begin(); it != current_ && it!=datahandles_.end(); ++it) {
-        position += (*it)->size();
+
+bool MultiHandle::canSeek() const {
+    for (size_t i = 0; i < datahandles_.size(); i++) {
+        if (!datahandles_[i]->canSeek()) {
+            return false;
+        }
     }
-    return position + (current_==datahandles_.end() ? Offset(0) : (*current_)->position());
+    return true;
+}
+
+Offset MultiHandle::position() {
+    long long accumulated = 0;
+    for (HandleList::iterator it = datahandles_.begin(); it != current_ && it != datahandles_.end(); ++it) {
+        accumulated += (*it)->size();
+    }
+    return accumulated + (current_ == datahandles_.end() ? Offset(0) : (*current_)->position());
 }
 
 Offset MultiHandle::seek(const Offset& offset) {
     ASSERT(read_);  /// seek only allowed on read mode
+
     if (current_ != datahandles_.end())
         (*current_)->close();
 
-    long long seekto = offset;
-    long long pos    = 0;
+    const long long seekto = offset;
+    long long accumulated  = 0;
     for (current_ = datahandles_.begin(); current_ != datahandles_.end(); ++current_) {
-        long long e = (*current_)->size();
-        if (seekto >= pos && seekto < pos + e) {
+        long long size = (*current_)->size();
+        if (accumulated <= seekto && seekto < accumulated + size) {
             openCurrent();
-            (*current_)->seek(seekto - pos);
+            (*current_)->seek(seekto - accumulated);
             return offset;
         }
-        pos += e;
+        accumulated += size;
     }
-    // FTM we throw an error if we try to seek beyond the end of the last file
-    std::ostringstream oss;
-    oss << "Trying to seek beyond the last file inside MultiHandle " << *this;
-    throw BadValue(oss.str(), Here());
+    // check if we went beyond EOF which is POSIX compliant, but we ASSERT so we find possible bugs
+    Offset beyond = seekto - accumulated;
+    ASSERT(not beyond);
+    return offset;
 }
 
 void MultiHandle::restartReadFrom(const Offset& offset) {
     Log::warning() << *this << " restart read from " << offset << std::endl;
-
     ASSERT(read_);
     if (current_ != datahandles_.end())
         (*current_)->close();
 
-    long long from = offset;
-    long long pos = 0;
+    long long from        = offset;
+    long long accumulated = 0;
     for (current_ = datahandles_.begin(); current_ != datahandles_.end(); ++current_) {
         long long e = (*current_)->estimate();
-        if (from >= pos && from < pos + e) {
-            Log::warning() << *this
-                           << " restart read from " << from
+        if (from >= accumulated && from < accumulated + e) {
+            Log::warning() << *this << " restart read from " << from
                            << ", current=" << (current_ - datahandles_.begin()) << std::endl;
 
             openCurrent();
-            (*current_)->restartReadFrom(from - pos);
+            (*current_)->restartReadFrom(from - accumulated);
             return;
         }
-        pos += e;
+        accumulated += e;
     }
-    ASSERT(from == Offset(0) && estimate() == Length(0));
+    // check if we went beyond EOF which is POSIX compliant, but we ASSERT so we find possible bugs
+    Offset beyond = from - accumulated;
+    ASSERT(not beyond);
 }
 
 void MultiHandle::toRemote(Stream& s) const {
@@ -409,8 +419,21 @@ std::string MultiHandle::title() const {
     return os.str();
 }
 
+void MultiHandle::collectMetrics(const std::string& what) const {
+    if (datahandles_.size() == 1) {
+        return datahandles_[0]->collectMetrics(what);
+    }
 
-bool MultiHandle::compress(bool sorted) {
+    std::map<std::string, unsigned long long> v;
+    for (size_t i = 0; i < datahandles_.size(); i++) {
+        v[datahandles_[i]->metricsTag()] += datahandles_[i]->estimate();
+    }
+
+    Metrics::set(what, v);
+}
+
+
+bool MultiHandle::compress(bool) {
     return false;
 }
 

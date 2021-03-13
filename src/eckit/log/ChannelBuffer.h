@@ -16,11 +16,11 @@
 #ifndef eckit_log_ChannelBuffer_h
 #define eckit_log_ChannelBuffer_h
 
-#include <vector>
 #include <streambuf>
+#include <vector>
 
-#include "eckit/memory/NonCopyable.h"
 #include "eckit/log/Channel.h"
+#include "eckit/memory/NonCopyable.h"
 
 namespace eckit {
 
@@ -29,16 +29,13 @@ namespace eckit {
 class LogTarget;
 
 /// Stream buffer to be usedby Channel
-class ChannelBuffer :
-        public std::streambuf,
-        private NonCopyable {
+class ChannelBuffer : public std::streambuf, private NonCopyable {
 
-private: // methods
-
+private:  // methods
     /// constructor, taking ownership of stream
-    ChannelBuffer( std::size_t size = 1024 );
+    ChannelBuffer(std::size_t size = 1024);
 
-    virtual ~ChannelBuffer();
+    virtual ~ChannelBuffer() override;
 
     bool active() const;
 
@@ -53,46 +50,43 @@ private: // methods
     void setStream(std::ostream& out);
     void addStream(std::ostream& out);
 
-    void setFile(const std::string& path);
-    void addFile(const std::string& path);
+    void setFile(const std::string& path, size_t bufferSize = 4 * 1024);
+    void addFile(const std::string& path, size_t bufferSize = 4 * 1024);
 
     void setCallback(channel_callback_t cb, void* data = 0);
     void addCallback(channel_callback_t cb, void* data = 0);
 
-protected: // methods
-
+protected:  // methods
     /// override this to change buffer behavior
     /// @returns true if no error occured
     virtual bool dumpBuffer();
 
     /// typically you don't need to override this
     /// @see dumpBuffer
-    virtual int_type overflow(int_type ch);
+    virtual int_type overflow(int_type ch) override;
 
     /// typically you don't need to override this
     /// @see dumpBuffer
-    virtual int_type sync();
+    virtual int_type sync() override;
 
-protected: // members
-
+protected:  // members
     LogTarget* target_;
 
     std::vector<char> buffer_;
 
 private:
-
-    friend std::ostream& operator<< (std::ostream& os, const ChannelBuffer& c) {
-        c.print(os); return os;
+    friend std::ostream& operator<<(std::ostream& os, const ChannelBuffer& c) {
+        c.print(os);
+        return os;
     }
 
     void print(std::ostream& s) const;
 
     friend class Channel;
-
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
-} // namespace eckit
+}  // namespace eckit
 
 #endif

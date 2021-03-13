@@ -9,10 +9,13 @@
  */
 
 /// @author Simon Smart
+/// @author Tiago Quintino
 /// @date   July 2017
 
 #ifndef eckit_testing_Test_h
 #define eckit_testing_Test_h
+
+#include <cstdlib> // for setenv
 
 #include <functional>
 #include <sstream>
@@ -46,6 +49,30 @@ enum InitEckitMain
 {
     NoInitEckitMain = 0,
     DoInitEckitMain = 1
+};
+
+//----------------------------------------------------------------------------------------------------------------------
+
+class SetEnv {
+public:
+    SetEnv(const char* key, const char* val) : key_(key), value_(val) {
+        oldValue_ = ::getenv(key_);
+        ::setenv(key_, value_, true);
+    }
+
+    ~SetEnv() {
+        if (not oldValue_) {
+            ::unsetenv(key_);
+        }
+        else {
+            ::setenv(key_, oldValue_, true);
+        }
+    }
+
+private:
+    const char* key_;
+    const char* value_;
+    const char* oldValue_;
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -126,6 +153,10 @@ public:  // methods
         else {
             return description_;
         }
+    }
+
+    const std::string& descriptionNoSection() const {
+        return description_;
     }
 
 private:  // members
@@ -293,25 +324,25 @@ inline int run(std::vector<Test>& tests, TestVerbosity v = AllFailures) {
 
     // force colour output unless explicitly deactivated
     // this is useful for test harness ctest that redirects output and is not attached to a tty
-    if (not::getenv("ECKIT_COLOUR_OUTPUT")) {
+    if (not ::getenv("ECKIT_COLOUR_OUTPUT")) {
         ::setenv("ECKIT_COLOUR_OUTPUT", "1", true);
     }
 
     // Suppress noisy exceptions in eckit, since we may throw many, and intentionally!!
     // we still allow the user to turn them on or off explicitly
-    if (not::getenv("ECKIT_EXCEPTION_IS_SILENT")) {
+    if (not ::getenv("ECKIT_EXCEPTION_IS_SILENT")) {
         ::setenv("ECKIT_EXCEPTION_IS_SILENT", "1", true);
     }
 
     // Suppress noisy ASSERT in eckit, since we may throw many, and intentionally!!
     // we still allow the user to turn them on or off explicitly
-    if (not::getenv("ECKIT_ASSERT_FAILED_IS_SILENT")) {
+    if (not ::getenv("ECKIT_ASSERT_FAILED_IS_SILENT")) {
         ::setenv("ECKIT_ASSERT_FAILED_IS_SILENT", "1", true);
     }
 
     // Suppress noisy SeriousBug exception in eckit, since we may throw many, and intentionally!!
     // we still allow the user to turn them on or off explicitly
-    if (not::getenv("ECKIT_SERIOUS_BUG_IS_SILENT")) {
+    if (not ::getenv("ECKIT_SERIOUS_BUG_IS_SILENT")) {
         ::setenv("ECKIT_SERIOUS_BUG_IS_SILENT", "1", true);
     }
 
@@ -323,7 +354,7 @@ inline int run(std::vector<Test>& tests, TestVerbosity v = AllFailures) {
 
         test.run(v, failures);
 
-        eckit::Log::info() << "Completed case \"" << test.description() << "\"" << std::endl;
+        eckit::Log::info() << "Completed case \"" << test.descriptionNoSection() << "\"" << std::endl;
     }
 
     if (v >= AllFailures) {
@@ -336,10 +367,16 @@ inline int run(std::vector<Test>& tests, TestVerbosity v = AllFailures) {
 }
 
 int run_tests_main(std::vector<Test>& tests, int argc, char* argv[], bool initEckitMain = true) {
+    
+    // deactivate loading of plugins not to influence some tests
+    ::setenv("AUTO_LOAD_PLUGINS", "false", true);
+    
     if (initEckitMain)
         eckit::Main::initialise(argc, argv);
+    
     eckit::Log::info() << "Running " << tests.size() << " tests:" << std::endl;
     int failures = run(tests);
+    
     eckit::Log::info() << failures << " tests failed out of " << tests.size() << "." << std::endl;
     return failures;
 }
@@ -458,8 +495,8 @@ int run_tests(int argc, char* argv[], bool initEckitMain = true) {
 
 #define SECTION(name)                                                                            \
     _num_subsections += 1;                                                                       \
-    _test_subsection = (name);                                                                   \
     if ((_num_subsections - 1) == _subsection) {                                                 \
+        _test_subsection = (name);                                                               \
         eckit::Log::info() << "Running section \"" << _test_subsection << "\" ..." << std::endl; \
     }                                                                                            \
     if ((_num_subsections - 1) == _subsection)

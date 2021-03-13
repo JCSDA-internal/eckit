@@ -13,20 +13,48 @@
 #include <iostream>
 
 #include "eckit/config/LibEcKit.h"
+#include "eckit/eckit_config.h"
 #include "eckit/exception/Exceptions.h"
 #include "eckit/filesystem/LocalPathName.h"
 #include "eckit/system/Library.h"
 #include "eckit/system/ResourceUsage.h"
 #include "eckit/system/SystemInfo.h"
-
+#include "eckit/system/LibraryManager.h"
+#include "eckit/system/Plugin.h"
 #include "eckit/testing/Test.h"
 
 using namespace std;
 using namespace eckit;
 using namespace eckit::testing;
+using eckit::system::Library;
+using eckit::system::LibraryManager;
+using eckit::system::Plugin;
 
 namespace eckit {
 namespace test {
+
+//----------------------------------------------------------------------------------------------------------------------
+
+// Issue ECKIT-520
+// Just adding this plugin and registering it should trigger the registration and deregistration.
+// before ISSUE-520 is fixed, the deregistration may cause a segfault as the debug log channel is
+// destroyed before the Plugin.
+
+class TestPlugin : Plugin {
+public:
+    TestPlugin() : Plugin("test-plugin") {}
+    ~TestPlugin() {
+        std::cout << "~TestPlugin()" << std::endl;
+    }
+    static const TestPlugin& instance() {
+        static TestPlugin instance;
+        return instance;
+    }
+    std::string version() const override { return "0.0.0"; }
+    std::string gitsha1( unsigned int count ) const override { return "undefined"; }
+};
+
+REGISTER_LIBRARY( TestPlugin );
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -58,17 +86,16 @@ CASE("test_eckit_system_info") {
 }
 
 CASE("test_eckit_system_library") {
-    using eckit::system::Library;
 
-    std::vector<std::string> libs = Library::list();
+    std::vector<std::string> libs = LibraryManager::list();
 
     std::string libpath;
 
     for (std::vector<std::string>::const_iterator libname = libs.begin(); libname != libs.end(); ++libname) {
 
-        EXPECT_NO_THROW(Library::lookup(*libname));
+        EXPECT_NO_THROW(LibraryManager::lookup(*libname));
 
-        const Library& lib = Library::lookup(*libname);
+        const Library& lib = LibraryManager::lookup(*libname);
 
         EXPECT_NO_THROW(lib.prefixDirectory());
 
@@ -85,6 +112,33 @@ CASE("test_eckit_system_library") {
 CASE("test_libeckit") {
     EXPECT_NO_THROW(LibEcKit::instance().configuration());  // tests an empty configuration
 }
+
+#ifdef eckit_HAVE_ECKIT_CMD
+CASE("test dynamic load") {
+    EXPECT(!LibraryManager::exists("eckit_cmd"));
+    EXPECT(LibraryManager::loadLibrary("eckit_cmd") != nullptr);
+    EXPECT(LibraryManager::exists("eckit_cmd"));
+}
+#endif
+
+CASE("test fail dynamic load") {
+    EXPECT(!LibraryManager::exists("fake-library"));
+    EXPECT(LibraryManager::loadLibrary("fake-library") == nullptr);
+}
+
+#ifdef eckit_HAVE_ECKIT_SQL
+CASE("Can load library without a eckit::Library object") {
+    EXPECT(!LibraryManager::exists("eckit_sql"));
+    EXPECT(LibraryManager::loadLibrary("eckit_sql") != nullptr);
+}
+#endif
+
+#ifdef eckit_HAVE_ECKIT_MPI
+CASE("Fails to load a plugin without a eckit::Plugin object") {
+    EXPECT(!LibraryManager::exists("eckit_mpi"));
+    EXPECT_THROW_AS(LibraryManager::loadPlugin("eckit_mpi"), UnexpectedState);
+}
+#endif
 
 
 //----------------------------------------------------------------------------------------------------------------------

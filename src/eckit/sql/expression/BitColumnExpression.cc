@@ -14,10 +14,12 @@
 
 #include "eckit/filesystem/PathName.h"
 #include "eckit/os/BackTrace.h"
+#include "eckit/sql/SQLColumn.h"
 #include "eckit/sql/SQLSelect.h"
 #include "eckit/sql/SQLTable.h"
 #include "eckit/sql/expression/ShiftedColumnExpression.h"
 #include "eckit/sql/type/SQLBit.h"
+#include "eckit/utils/Tokenizer.h"
 
 // Cray C++ compiler should not try to optimize this code
 #if _CRAYC
@@ -53,11 +55,7 @@ BitColumnExpression::BitColumnExpression(const std::string& name, const std::str
 }
 
 BitColumnExpression::BitColumnExpression(const BitColumnExpression& o) :
-    ColumnExpression(o),
-    mask_(o.mask_),
-    bitShift_(o.bitShift_),
-    field_(o.field_),
-    name_(o.name_) {}
+    ColumnExpression(o), mask_(o.mask_), bitShift_(o.bitShift_), field_(o.field_), name_(o.name_) {}
 
 BitColumnExpression::~BitColumnExpression() {}
 
@@ -70,7 +68,7 @@ void BitColumnExpression::prepare(SQLSelect& sql) {
     updateType(sql);
 }
 
-void BitColumnExpression::updateType(SQLSelect &sql) {
+void BitColumnExpression::updateType(SQLSelect& sql) {
     std::string name = name_ + "." + field_ + tableReference_;
     if (!table_)
         table_ = &sql.findTable(name);
@@ -125,6 +123,24 @@ std::shared_ptr<SQLExpression> BitColumnExpression::clone() const {
 
 std::shared_ptr<SQLExpression> BitColumnExpression::reshift(int minColumnShift) const {
     return std::make_shared<ShiftedColumnExpression<BitColumnExpression>>(*this, -minColumnShift, 0);
+}
+
+std::string BitColumnExpression::tableColumnToFullname(const SQLColumn& column) const {
+    // The fully expanded table column will not include the field name, as we are extracting
+    // the specified bits out of that column.
+    //
+    // This means that to construct the fully qualified field name, we need to include
+    // these field names
+
+    std::vector<std::string> bits;
+    Tokenizer('@')(column.fullName(), bits);
+
+    ASSERT(bits.size() > 0);
+    ASSERT(bits.size() < 3);
+
+    std::string colname = bits[0] + "." + field_;
+    if (bits.size() == 2) colname += "@" + bits[1];
+    return colname;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

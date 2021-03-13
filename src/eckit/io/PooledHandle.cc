@@ -9,8 +9,8 @@
  */
 
 #include <cstdio>
+#include <memory>
 #include <string>
-#include <thread>
 
 #include "eckit/config/LibEcKit.h"
 #include "eckit/config/Resource.h"
@@ -18,7 +18,6 @@
 #include "eckit/filesystem/PathName.h"
 #include "eckit/io/Buffer.h"
 #include "eckit/io/PooledHandle.h"
-#include "eckit/log/Bytes.h"
 #include "eckit/utils/MD5.h"
 
 
@@ -27,8 +26,8 @@ namespace eckit {
 class PoolHandleEntry;
 
 /// @note in anonymous namespace to solve some compilers link issue (eg. xlc)
-namespace  {
-    static thread_local std::map<PathName, PoolHandleEntry*> pool_;
+namespace {
+static thread_local std::map<PathName, std::unique_ptr<PoolHandleEntry>> pool_;
 }
 
 static size_t maxPooledHandles() {
@@ -47,7 +46,7 @@ struct PoolHandleEntryStatus {
 class PoolHandleEntry {
 public:
     PathName path_;
-    DataHandle* handle_;
+    std::unique_ptr<DataHandle> handle_;
     Length estimate_;
 
     size_t count_;
@@ -60,29 +59,24 @@ public:
     size_t nbCloses_ = 0;
 
 public:
-
     explicit PoolHandleEntry(const PathName& path) : path_(path), handle_(nullptr), count_(0) {}
-    ~PoolHandleEntry() {
-        LOG_DEBUG_LIB(LibEcKit) << *this << std::endl;
+    ~PoolHandleEntry() { LOG_DEBUG_LIB(LibEcKit) << *this << std::endl; }
+
+    friend std::ostream& operator<<(std::ostream& s, const PoolHandleEntry& e) {
+        e.print(s);
+        return s;
     }
 
-    friend std::ostream& operator<<(std::ostream& s,const PoolHandleEntry& e)
-    { e.print(s); return s;}
-
     void print(std::ostream& s) const {
-        s << "PoolHandleEntry[" << path_
-          << ",opens=" << nbOpens_
-          << ",reads=" << nbReads_
-          << ",seeks=" << nbSeeks_
-          << ",closes=" << nbCloses_
-          << "]";
+        s << "PoolHandleEntry[" << path_ << ",opens=" << nbOpens_ << ",reads=" << nbReads_ << ",seeks=" << nbSeeks_
+          << ",closes=" << nbCloses_ << "]";
     }
 
     void doClose() {
         if (handle_) {
             LOG_DEBUG_LIB(LibEcKit) << "PooledHandle::close(" << *handle_ << ")" << std::endl;
             handle_->close();
-            handle_ = nullptr;
+            handle_.reset();
         }
     }
 
@@ -114,7 +108,7 @@ public:
             checkMaxPooledHandles();
 
             nbOpens_++;
-            handle_ = path_.fileHandle();
+            handle_.reset(path_.fileHandle());
             ASSERT(handle_);
             LOG_DEBUG_LIB(LibEcKit) << "PooledHandle::openForRead(" << *handle_ << ")" << std::endl;
             estimate_ = handle_->openForRead();
@@ -172,8 +166,7 @@ public:
 
         ASSERT(handle_->seek(s->second.position_) == s->second.position_);
 
-        size_t length = size_t(len);
-        long n        = handle_->read(buffer, len);
+        long n = handle_->read(buffer, len);
 
         s->second.position_ = handle_->position();
         nbReads_++;
@@ -202,11 +195,11 @@ public:
 PooledHandle::PooledHandle(const PathName& path) : path_(path), entry_(nullptr) {
     auto j = pool_.find(path);
     if (j == pool_.end()) {
-        pool_[path] = new PoolHandleEntry(path);
+        pool_.emplace(std::make_pair(path, std::unique_ptr<PoolHandleEntry>(new PoolHandleEntry(path))));
         j           = pool_.find(path);
     }
 
-    entry_ = (*j).second;
+    entry_ = (*j).second.get();
     entry_->add(this);
 }
 
@@ -270,6 +263,10 @@ long PooledHandle::read(void* buffer, long len) {
 void PooledHandle::hash(MD5& md5) const {
     md5 << "PooledHandle";
     md5 << std::string(entry_->path_);
+}
+
+Offset PooledHandle::position() {
+    return entry_->handle_->position();
 }
 
 }  // namespace eckit

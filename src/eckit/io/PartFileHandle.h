@@ -9,6 +9,8 @@
  */
 
 /// @author Baudouin Raoult
+/// @author Emanuele Danovaro
+/// @author Simon Smart
 /// @author Tiago Quintino
 /// @date   May 1996
 
@@ -17,8 +19,8 @@
 
 #include <memory>
 
-#include "eckit/io/DataHandle.h"
 #include "eckit/filesystem/PathName.h"
+#include "eckit/io/DataHandle.h"
 #include "eckit/types/Types.h"
 
 namespace eckit {
@@ -28,17 +30,16 @@ class PooledHandle;
 //----------------------------------------------------------------------------------------------------------------------
 
 class PartFileHandle : public DataHandle {
-public: // methods
-
-    PartFileHandle(const PathName&,const OffsetList&,const LengthList&);
-    PartFileHandle(const PathName&,const Offset&,const Length&);
+public:  // methods
+    PartFileHandle(const PathName&, const OffsetList&, const LengthList&);
+    PartFileHandle(const PathName&, const Offset&, const Length&);
     explicit PartFileHandle(Stream&);
 
     virtual ~PartFileHandle() override;
 
     const PathName& path() const { return path_; }
 
-// -- Overridden methods
+    // -- Overridden methods
 
     // From DataHandle
 
@@ -46,8 +47,8 @@ public: // methods
     virtual void openForWrite(const Length&) override;
     virtual void openForAppend(const Length&) override;
 
-    virtual long read(void*,long) override;
-    virtual long write(const void*,long) override;
+    virtual long read(void*, long) override;
+    virtual long write(const void*, long) override;
     virtual void close() override;
     virtual void rewind() override;
 
@@ -60,9 +61,13 @@ public: // methods
     virtual void restartReadFrom(const Offset& from) override;
     virtual Offset position() override;
     virtual Offset seek(const Offset&) override;
+    virtual bool canSeek() const override;
 
-    virtual void cost(std::map<std::string,Length>&, bool) const override;
+    virtual void cost(std::map<std::string, Length>&, bool) const override;
     virtual std::string title() const override;
+    virtual std::string metricsTag() const override;
+
+
     virtual bool moveable() const override { return true; }
     virtual DataHandle* clone() const override;
 
@@ -71,30 +76,27 @@ public: // methods
     virtual void encode(Stream&) const override;
     virtual const ReanimatorBase& reanimator() const override { return reanimator_; }
 
-// -- Class methods
+    // -- Class methods
 
-    static  const ClassSpec&  classSpec()        { return classSpec_;}
+    static const ClassSpec& classSpec() { return classSpec_; }
 
 private:  // members
-
-    PathName           path_;
+    PathName path_;
     std::unique_ptr<PooledHandle> handle_;
-    long long          pos_;
-    Ordinal            index_;
-    OffsetList         offset_;
-    LengthList         length_;
+    long long pos_;
+    Ordinal index_;
+    OffsetList offset_;
+    LengthList length_;
 
 private:  // methods
+    long read1(char*, long);
 
-    long read1(char*,long);
-
-    static  ClassSpec               classSpec_;
-    static  Reanimator<PartFileHandle>  reanimator_;
-
+    static ClassSpec classSpec_;
+    static Reanimator<PartFileHandle> reanimator_;
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
-} // namespace eckit
+}  // namespace eckit
 
 #endif

@@ -35,15 +35,18 @@ namespace eckit {
 
 namespace maths {
 
-template < typename scalar, typename index > class RowVector;
-template < typename scalar, typename index > class ColVector;
-template < typename scalar, typename index > class Matrix;
+template <typename scalar, typename index>
+class RowVector;
+template <typename scalar, typename index>
+class ColVector;
+template <typename scalar, typename index>
+class Matrix;
 
-} // namespace maths
+}  // namespace maths
 
-} // namespace eckit
+}  // namespace eckit
 
-#ifdef ECKIT_HAVE_EIGEN
+#ifdef eckit_HAVE_EIGEN
 
 // Implementation using Eigen
 #include "eckit/maths/MatrixEigen.h"

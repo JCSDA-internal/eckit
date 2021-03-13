@@ -42,8 +42,10 @@ public:  // methods
 
     friend std::ostream& operator<<(std::ostream& s, const LocalPathName& p) { return s << p.path_; }
 
-    LocalPathName(const char* p = "/", bool tildeIsUserHome = false) : path_(p) { tidy(tildeIsUserHome); }
-    LocalPathName(const std::string& p, bool tildeIsUserHome = false) : path_(p) { tidy(tildeIsUserHome); }
+    LocalPathName(const char* p = "/", bool tildeIsUserHome = false, bool skipTildeExpansion = false) : path_(parsePath(p))
+        { if (!skipTildeExpansion) tidy(tildeIsUserHome, skipTildeExpansion); }
+    LocalPathName(const std::string& p, bool tildeIsUserHome = false, bool skipTildeExpansion = false) : path_(parsePath(p))
+        { if (!skipTildeExpansion) tidy(tildeIsUserHome, skipTildeExpansion); }
     LocalPathName(const LocalPathName& p) : path_(p.path_) {}
 
     // Assignment
@@ -54,12 +56,12 @@ public:  // methods
     }
 
     LocalPathName& operator=(const std::string& p) {
-        path_ = p;
+        path_ = parsePath(p);
         return tidy();
     }
 
     LocalPathName& operator=(const char* p) {
-        path_ = p;
+        path_ = parsePath(p);
         return tidy();
     }
 
@@ -99,6 +101,8 @@ public:  // methods
     bool operator==(const LocalPathName& other) const { return path_ == other.path_; }
 
     // Methods
+
+    static const char* type() { return "local"; }
 
     /// @returns a relative filepath to path to a start directory.
     /// This is a pure path computation, no filesystem is accessed to confirm the existence or nature of path
@@ -227,7 +231,7 @@ public:  // methods
     // Class methods
 
     static LocalPathName unique(const LocalPathName&);
-    static void match(const LocalPathName&, std::vector<LocalPathName>&, bool = false);
+    static void match(const LocalPathName&, std::vector<LocalPathName>&, bool recursive = false);
     static void link(const LocalPathName& from, const LocalPathName& to);
     static void rename(const LocalPathName& from, const LocalPathName& to);
     static void rename(const LocalPathName& from, const std::string& newBase);
@@ -241,7 +245,14 @@ private:
 
     // Methods
 
-    LocalPathName& tidy(bool tildeIsUserHome = false);
+    LocalPathName& tidy(bool tildeIsUserHome = false, bool skipTildeExpansion = false);
+
+    std::string parsePath(const std::string& p) {
+        if (p.compare(0, 8, "local://") == 0) {
+            return p.substr(8);
+        }
+        return p;
+    }
 
     // friend
 

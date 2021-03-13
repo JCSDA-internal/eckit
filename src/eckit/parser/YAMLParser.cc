@@ -152,7 +152,9 @@ struct YAMLItemAnchor : public YAMLItem {
     }
 
     virtual Value value(YAMLParser& parser) const {
-        Value v = parser.nextItem().value(parser);
+        const YAMLItem& next(parser.nextItem());
+        YAMLItemLock lock(&next);
+        Value v = next.value(parser);
         parser.anchor(value_, v);
         return v;
     }
@@ -190,10 +192,16 @@ struct YAMLItemKey : public YAMLItem {
     }
 
 
-    void set(ValueMap& m, ValueList& l, const Value& k, const Value& v) const {
+    void set(ValueMap& m, ValueList& l, const Value& k, const Value& v, bool unique = false) const {
+
 
         if (m.find(k) == m.end()) {
             l.push_back(k);
+        }
+        else {
+            if (unique) {
+                return;
+            }
         }
 
         m[k] = v;
@@ -209,6 +217,7 @@ struct YAMLItemKey : public YAMLItem {
 
 
         const YAMLItem* key = this;
+        YAMLItemLock keyLock(this);
 
         bool more = true;
         while (more) {
@@ -221,17 +230,17 @@ struct YAMLItemKey : public YAMLItem {
 
             if (next.indent_ == key->indent_) {
                 // Special case
-                set(_m, _l, key->value_, Value());  // null
+                set(_m, _l, key->value_, Value(), true);  // null
 
                 key = &parser.nextItem();
                 ASSERT(dynamic_cast<const YAMLItemKey*>(key));
-                lock.set(key);
+                keyLock.set(key);
                 continue;
             }
 
             if (next.indent_ < key->indent_) {
                 // Special case
-                set(_m, _l, key->value_, Value());  // null
+                set(_m, _l, key->value_, Value(), true);  // null
 
                 more = false;
                 continue;
@@ -245,8 +254,8 @@ struct YAMLItemKey : public YAMLItem {
                 if (k == import) {
                     Value keys = v.keys();
                     for (size_t i = 0; i < keys.size(); ++i) {
-                        Value k = keys[i];
-                        set(_m, _l, k, v[k]);
+                        Value k2 = keys[i];
+                        set(_m, _l, k2, v[k2]);
                     }
                 }
                 else {
@@ -255,7 +264,6 @@ struct YAMLItemKey : public YAMLItem {
             }
 
             const YAMLItem& peek = parser.peekItem();
-            // std::cout << "key " << *key << " peek " << peek << std::endl;
 
             if (peek.indent_ < key->indent_) {
                 more = false;
@@ -265,9 +273,28 @@ struct YAMLItemKey : public YAMLItem {
             if (peek.indent_ == key->indent_) {
                 key = &parser.nextItem();
                 ASSERT(dynamic_cast<const YAMLItemKey*>(key));
-                lock.set(key);
+                keyLock.set(key);
                 continue;
             }
+
+            if (next.value_.isString() && peek.indent_ > key->indent_ && peek.value_.isString()) {
+
+                std::ostringstream oss;
+                oss << next.value_;
+                for (;;) {
+                    const YAMLItem& peek = parser.peekItem();
+
+                    if (!(peek.indent_ > key->indent_ && peek.value_.isString())) {
+                        break;
+                    }
+
+                    oss << ' ' << parser.nextItem().value_;
+                }
+
+                set(_m, _l, key->value_, oss.str());
+                continue;
+            }
+
 
             std::ostringstream oss;
             oss << "Invalid sequence " << *key << " then " << next << " then " << peek << std::endl;
@@ -351,7 +378,7 @@ struct YAMLItemEndDocument : public YAMLItem {
 };
 
 
-YAMLParser::YAMLParser(std::istream& in) : ObjectParser(in, true), last_(0) {
+YAMLParser::YAMLParser(std::istream& in) : ObjectParser(in, true, true), last_(0) {
     stop_.push_back(0);
     comma_.push_back(0);
     colon_.push_back(0);
@@ -391,13 +418,13 @@ Value YAMLParser::parseNumber() {
 }
 
 
-static Value toValue(const std::string& s) {
 
-    static Regex real("^[-+]?[0-9]+\\.?[0-9]+([eE][-+]?[0-9]+)?$", false, true);
-    static Regex integer("^[-+]?[0-9]+$", false, true);
-    static Regex hex("^0x[0-9a-zA-Z]+$", false, true);
-    static Regex octal("^0[0-9]+$", false, true);
-    static Regex time("[0-9]+:[0-9]+:[0-9]+$", false, true);
+static Value toValue(const std::string& s) {
+    static Regex real("^[-+]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][-+]?[0-9]+)?$", false);
+    static Regex integer("^[-+]?[0-9]+$", false);
+    static Regex hex("^0x[0-9a-zA-Z]+$", false);
+    static Regex octal("^0[0-7]+$", false);
+    static Regex time("[0-9]+:[0-9]+:[0-9]+$", false);
 
     /*
     if (time.match(s)) {
@@ -407,39 +434,101 @@ static Value toValue(const std::string& s) {
 
     // std::cout << "TO VALUE " << s << std::endl;
 
-    if (octal.match(s)) {
-        return Value(strtol(s.c_str(), 0, 0));
-    }
-
-    if (hex.match(s)) {
-        return Value(strtol(s.c_str(), 0, 0));
-    }
-
-    if (integer.match(s)) {
-        long long d = Translator<std::string, long long>()(s);
-        return Value(d);
-    }
-
-    if (real.match(s)) {
-        double d = Translator<std::string, double>()(s);
-        return Value(d);
-    }
-
-    if (s == "null") {
-        return Value();
-    }
-
-    if (s == "false") {
-        return Value(false);
-    }
-
-    if (s == "true") {
-        return Value(true);
-    }
-
     if (s.length()) {
-        ASSERT(s[0] != '"');
-        ASSERT(s[0] != '\'');
+        // This is because checking regex is very slow
+        switch (s[0]) {
+            case '0':
+
+                if (octal.match(s)) {
+                    return Value(strtol(s.c_str(), 0, 0));
+                }
+
+                if (s.length() > 2 && s[1] == 'x' && hex.match(s)) {
+                    return Value(strtol(s.c_str(), 0, 0));
+                }
+
+                if (integer.match(s)) {
+                    long long d = Translator<std::string, long long>()(s);
+                    return Value(d);
+                }
+
+                if (real.match(s)) {
+                    double d = Translator<std::string, double>()(s);
+                    return Value(d);
+                }
+                break;
+
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+            case '-':
+            case '+':
+            case '.':
+                if (integer.match(s)) {
+                    long long d = Translator<std::string, long long>()(s);
+                    return Value(d);
+                }
+
+                if (real.match(s)) {
+                    double d = Translator<std::string, double>()(s);
+                    return Value(d);
+                }
+                break;
+
+            case 'o':
+                if (s == "on") {
+                    return Value(true);
+                }
+
+                if (s == "off") {
+                    return Value(false);
+                }
+
+                break;
+
+            case 'n':
+                if (s == "null") {
+                    return Value();
+                }
+
+                if (s == "no") {
+                    return Value(false);
+                }
+
+                break;
+
+            case 'f':
+                if (s == "false") {
+                    return Value(false);
+                }
+                break;
+
+            case 't':
+                if (s == "true") {
+                    return Value(true);
+                }
+                break;
+
+            case 'y':
+                if (s == "yes") {
+                    return Value(true);
+                }
+                break;
+
+            case '"':
+                ASSERT(s[0] != '"');
+                break;
+
+            case '\'':
+                ASSERT(s[0] != '\'');
+                break;
+        }
     }
 
 
@@ -747,6 +836,7 @@ const YAMLItem& YAMLParser::nextItem() {
     }
 
     last_ = items_.front();
+    // We don't need to attach here. attach() is called on all items inside loadItem()
     // last_->attach();
 
     items_.pop_front();

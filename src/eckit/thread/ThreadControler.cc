@@ -11,7 +11,6 @@
 #include <signal.h>
 
 #include "eckit/log/Log.h"
-#include "eckit/memory/MemoryPool.h"
 #include "eckit/runtime/Main.h"
 #include "eckit/runtime/Monitor.h"
 #include "eckit/thread/AutoLock.h"
@@ -26,11 +25,7 @@ namespace eckit {
 
 
 ThreadControler::ThreadControler(Thread* proc, bool detached, size_t stack) :
-    detached_(detached),
-    thread_(0),
-    proc_(proc),
-    stack_(stack),
-    running_(false) {
+    detached_(detached), thread_(0), proc_(proc), stack_(stack), running_(false) {
     // cout << "ThreadControler::ThreadControler(" << this << ")" << " " << hex << pthread_self() << std::endl;
 }
 

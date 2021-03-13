@@ -18,109 +18,127 @@
 
 #include "eckit/eckit.h"
 #include "eckit/exception/Exceptions.h"
+#include "eckit/io/MemoryHandle.h"
 
 
-#ifdef ECKIT_HAVE_CURL
-#include <curl/curl.h>
-#else
-typedef int CURL;
-typedef int CURLM;
-#endif
+// #ifdef eckit_HAVE_CURL
+// #include <curl/curl.h>
+// #else
+// typedef int CURL;
+// typedef int CURLM;
+// #endif
 
 
 namespace eckit {
 
+class Value;
+
+typedef std::map<std::string, std::string> EasyCURLHeaders;
+class URLException : public Exception {
+    int code_;
+
+public:
+    URLException(const std::string& what, int code) : Exception(what), code_(code) {}
+    int code() const { return code_; }
+};
 
 //----------------------------------------------------------------------------------------------------------------------
 
+class EasyCURLResponseImp;
+class CURLHandle;
+
+class EasyCURLResponse {
+    mutable EasyCURLResponseImp* imp_;
+
+public:
+    EasyCURLResponse(EasyCURLResponseImp*);
+    ~EasyCURLResponse();
+
+    EasyCURLResponse(const EasyCURLResponse&);
+    EasyCURLResponse& operator=(const EasyCURLResponse&);
+
+    Value json() const;
+    std::string body() const;
+    const EasyCURLHeaders& headers() const;
+
+    int code() const;
+
+    unsigned long long contentLength() const;
+    size_t read(void* ptr, size_t size) const;
+    eckit::DataHandle* dataHandle(const std::string& message = "") const;
+
+private:
+    void print(std::ostream&) const;
+
+    friend std::ostream& operator<<(std::ostream& s, const EasyCURLResponse& c) {
+        c.print(s);
+        return s;
+    }
+};
+
 class EasyCURL {
 public:
+    // -- Exceptions
 
-    class URLException : public Exception {
-        int code_;
-    public:
-        URLException(const std::string& what, int code):
-            Exception(what), code_(code) {}
-        int code() const { return code_; }
-    };
+    // -- Contructors
 
-    typedef std::map<std::string, std::string> Headers;
+    EasyCURL();
 
-// -- Exceptions
+    // -- Destructor
 
-// -- Contructors
+    ~EasyCURL();
 
-    EasyCURL(const std::string& url = std::string());
+    // -- Methods
 
-// -- Destructor
-
-    virtual ~EasyCURL();
+    EasyCURLResponse GET(const std::string& url, bool stream = false);
+    EasyCURLResponse HEAD(const std::string& url);
+    EasyCURLResponse PUT(const std::string& url, const std::string& data);
+    EasyCURLResponse POST(const std::string& url, const std::string& data);
+    EasyCURLResponse DELETE(const std::string& url);
 
     void verbose(bool on);
     void followLocation(bool on);
     void sslVerifyPeer(bool on);
     void sslVerifyHost(bool on);
+    void failOnError(bool on);
 
 
-    void url(const std::string&);
-    void userAgent(const std::string&);
     void customRequest(const std::string&);
+    void headers(const EasyCURLHeaders& headers);
+    void userAgent(const std::string&);
 
-    void headers(const Headers& headers);
+public:
+    // -- Overridden methods
 
-    int responseCode() const;
-    unsigned long long contentLength();
+    void print(std::ostream&) const;
 
-    void waitForData();
-    size_t activeTransfers() const;
-
-// -- Overridden methods
-
-    // virtual void rewind();
-    virtual void print(std::ostream&) const;
-
-    // From Streamable
-
-
-// -- Class methods
+    // -- Class methods
 
 
 private:
+    // -- Members
 
-// -- Members
+    CURLHandle* ch_;
 
-    CURL *curl_;
-    CURLM *multi_;
+    // CURLM *multi_;
 
-    std::string uri_;
-    bool body_;
-    Headers headers_;
-    int activeTransfers_;
+    EasyCURLResponse request(const std::string& url, bool stream = false);
 
-// -- Methods
-
-    virtual size_t writeCallback(void *ptr, size_t size) = 0;
-
-    virtual size_t headersCallback(const void *ptr, size_t size);
+    // -- Methods
 
 
-
-// -- Class members
-
-    static size_t _writeCallback(void *ptr, size_t size, size_t nmemb, void *userdata);
-    static size_t _headersCallback(void *ptr, size_t size, size_t nmemb, void *userdata);
+    // -- Class members
 
 
-
-    friend std::ostream& operator<<(std::ostream& s, const EasyCURL& c)
-    { c.print(s); return s;}
-
-
+    friend std::ostream& operator<<(std::ostream& s, const EasyCURL& c) {
+        c.print(s);
+        return s;
+    }
 };
 
 
 //----------------------------------------------------------------------------------------------------------------------
 
-} // namespace eckit
+}  // namespace eckit
 
 #endif

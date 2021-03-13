@@ -91,7 +91,7 @@ void SQLSelect::ensureFetch(const SQLTable& table, const std::string& columnName
     auto& fetch(tablesToFetch_[&table].fetch_);
     if (std::find_if(fetch.begin(), fetch.end(), [&](const SQLColumn& c) { return &c == &column; }) == fetch.end()) {
         fetch.push_back(column);
-//        tablesToFetch_[&table].fetchSizeDoubles_.push_back(column.dataSizeDoubles());
+        //        tablesToFetch_[&table].fetchSizeDoubles_.push_back(column.dataSizeDoubles());
         // This will create the value if it doesn't exist
         ValueLookup& value(values_[fullname]);
         tablesToFetch_[&table].values_.push_back(&value);
@@ -212,14 +212,13 @@ void SQLSelect::prepareExecute() {
 
         if (aggregated_.size() != select_.size()) {
             mixedAggregatedAndScalar_ = true;
-            Log::info() << "SELECT has aggregated and non-aggregated results" << std::endl;
+            Log::debug<LibEcKit>() << "SELECT has aggregated and non-aggregated results" << std::endl;
         }
     }
 
 
     std::shared_ptr<SQLExpression> where(where_);
     if (where) {
-        Log::info() << "WHERE: " << *where << std::endl;
         where->prepare(*this);
 
         bool more = true;
@@ -235,11 +234,11 @@ void SQLSelect::prepareExecute() {
         if (where->isConstant()) {
             bool missing = false;
             if (where->eval(missing)) {
-                Log::info() << "WHERE condition always true, ignoring" << std::endl;
+                Log::debug<LibEcKit>() << "WHERE condition always true" << std::endl;
                 where = 0;
             }
             else {
-                Log::info() << "WHERE condition always false" << std::endl;
+                Log::debug<LibEcKit>() << "WHERE condition always false" << std::endl;
                 return;
             }
         }
@@ -264,7 +263,7 @@ void SQLSelect::prepareExecute() {
                                    << "->" << x.table2_->fullName() << std::endl;
                     continue;
                 }
-                Log::info() << "Using link " << table1->fullName() << "->" << table2->fullName() << std::endl;
+                Log::debug<LibEcKit>() << "Using link " << table1->fullName() << "->" << table2->fullName() << std::endl;
 
                 //
                 std::string o      = name2 + ".offset";
@@ -365,8 +364,8 @@ void SQLSelect::prepareExecute() {
 
                         if (ok) {
                             (*k)->check_.push_back(e[i]);
-                            Log::info() << "WHERE multi-table quick check for " << table->fullName() << " " << (*e[i])
-                                        << std::endl;
+                            Log::debug<LibEcKit>() << "WHERE multi-table quick check for " << table->fullName() << " " << (*e[i])
+                                                   << std::endl;
 
                             e[i] = 0;
                         }
@@ -430,6 +429,8 @@ void SQLSelect::refreshCursorMetadata(SQLTable* table, SQLTableIterator& cursor)
     const double* data(cursor.data());
     const std::vector<size_t> offsets(cursor.columnOffsets());
     const std::vector<size_t> doublesSizes(cursor.doublesDataSizes());
+    const std::vector<char> hasMissing(cursor.columnsHaveMissing());
+    const std::vector<double> missingValues(cursor.missingValues());
 
     for (size_t i = 0; i < tbl.fetch_.size(); i++) {
         std::string fullname(tbl.fetch_[i].get().fullName());
@@ -444,6 +445,10 @@ void SQLSelect::refreshCursorMetadata(SQLTable* table, SQLTableIterator& cursor)
         // This is a function of the table. Aaaarg. Makes this horribly not parallelisable.
         // eckit::sql needs a rewrite. Will enable us to work around this shit.
         table->updateColumnDoublesWidth(fullname, doublesSizes[i]);
+
+        // Aaaargh, we need to know when we are looking at missing values. But these can change
+        // down the column. As can 'hasMissing'
+        table->updateColumnMissingValues(fullname, hasMissing[i], missingValues[i]);
 
         // This will create the value if it does not exist.
         std::pair<const double*, bool>& value(values_[fullname]);

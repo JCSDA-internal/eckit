@@ -27,14 +27,7 @@ namespace eckit {
 
 
 KDMapped::KDMapped(const PathName& path, size_t itemCount, size_t itemSize, size_t metadataSize) :
-    path_(path),
-    header_(itemCount, itemSize, metadataSize),
-    count_(0),
-    size_(0),
-    base_(0),
-    root_(0),
-    addr_(0),
-    fd_(-1) {
+    path_(path), header_(itemCount, itemSize, metadataSize), size_(0), base_(0), root_(0), addr_(0), fd_(-1) {
 
     int oflags = O_RDWR | O_CREAT;
     int mflags = PROT_READ | PROT_WRITE;
@@ -48,7 +41,7 @@ KDMapped::KDMapped(const PathName& path, size_t itemCount, size_t itemSize, size
 
     SYSCALL(fd_ = ::open(path.localPath(), oflags, 0777));
     if (itemCount == 0) {
-
+        readonly_ = true;
         Stat::Struct s;
         SYSCALL(Stat::stat(path.localPath(), &s));
         size_ = s.st_size;
@@ -65,15 +58,16 @@ KDMapped::KDMapped(const PathName& path, size_t itemCount, size_t itemSize, size
 
         base = ((header_.headerSize_ + header_.metadataSize_ + header_.itemSize_ - 1) / header_.itemSize_) *
                header_.itemSize_;
+        count_ = header_.itemCount_;
     }
     else {
-        base = ((header_.headerSize_ + header_.metadataSize_ + header_.itemSize_ - 1) / header_.itemSize_) *
+        readonly_ = false;
+        base      = ((header_.headerSize_ + header_.metadataSize_ + header_.itemSize_ - 1) / header_.itemSize_) *
                header_.itemSize_;
 
         char c = 0;
 
-        count_ = 1;
-        size_  = base + (itemCount + 1) * itemSize;
+        size_ = base + (itemCount + 1) * itemSize;
 
         lseek(fd_, 0, SEEK_SET);
         SYSCALL(::write(fd_, &header_, sizeof(header_)));

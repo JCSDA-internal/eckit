@@ -16,24 +16,18 @@
 namespace eckit {
 
 class Buffer;
-class ResizableBuffer;
 
 //----------------------------------------------------------------------------------------------------------------------
 
 class AECCompressor : public eckit::Compressor {
 
 public:  // methods
+    AECCompressor();
 
-  AECCompressor();
+    virtual ~AECCompressor() override;
 
-  virtual ~AECCompressor();
-
-  virtual size_t compress(const eckit::Buffer& in, eckit::ResizableBuffer& out) const;
-  virtual size_t uncompress(const eckit::Buffer& in, eckit::ResizableBuffer& out) const;
-
-protected: // methods
-  static size_t minInputSize(const size_t inputSize, const aec_stream &strm);
-
+    virtual size_t compress(const void* in, size_t len, eckit::Buffer& out) const override;
+    virtual void uncompress(const void* in, size_t len, eckit::Buffer& out, size_t outlen) const override;
 };
 
 //----------------------------------------------------------------------------------------------------------------------

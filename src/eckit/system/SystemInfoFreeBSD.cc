@@ -15,10 +15,10 @@
 
 #include <stdlib.h>
 
-#include <sys/types.h> // FreeBSD: must appear before sys/sysctl.h
 #include <sys/resource.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/types.h>  // FreeBSD: must appear before sys/sysctl.h
 #include <unistd.h>
 
 #include <climits>
@@ -59,6 +59,10 @@ MemoryInfo SystemInfoFreeBSD::memoryUsage() const {
     // return Mem(usage.ru_maxrss * 1024, 0) ;
     MemoryInfo mem;
     return mem;
+}
+
+std::string SystemInfoFreeBSD::dynamicLibraryName(const std::string& name) const {
+    return std::string("lib") + name + ".so";
 }
 
 

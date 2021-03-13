@@ -8,20 +8,14 @@
  * does it submit to any jurisdiction.
  */
 
-#ifndef eckit_utils_HashxxHash_H
-#define eckit_utils_HashxxHash_H
+#pragma once
 
 /// @note This file is named HashxxHash and not simply xxHash not to clash with the included header xxhash.h
 ///       for case insensitive file systems
 
+#include <memory>
+
 #include "eckit/eckit.h"
-
-#ifdef ECKIT_HAVE_XXHASH
-#include <xxhash.h>
-#else
-#error "eckit was not configured with xxHash, xxHash is disabled. Use conditional ECKIT_HAVE_XXHASH from eckit/eckit.h"
-#endif
-
 #include "eckit/utils/Hash.h"
 
 namespace eckit {
@@ -29,33 +23,33 @@ namespace eckit {
 class xxHash : public Hash {
 
 public:  // types
+    xxHash();
 
-  xxHash();
+    explicit xxHash(const char*);
+    explicit xxHash(const std::string&);
 
-  explicit xxHash(const char*);
-  explicit xxHash(const std::string&);
+    xxHash(const void* data, size_t len);
 
-  xxHash(const void* data, size_t len);
+    virtual ~xxHash() override;
 
-  virtual ~xxHash();
+    virtual void reset() const override;
 
-  virtual void reset() const;
+    virtual digest_t compute(const void*, long) override;
 
-  virtual digest_t compute(const void*, long);
+    virtual void update(const void*, long) override;
 
-  virtual void update(const void*, long);
+    virtual digest_t digest() const override;
 
-  virtual digest_t digest() const;
+    template <class T>
+    xxHash& operator<<(const T& x) {
+        add(x);
+        return *this;
+    }
 
-  template<class T>
-  xxHash& operator<<(const T& x) { add(x); return *this; }
+private:  // members
 
-private: // members
-
-  XXH64_state_t* ctx_;
-
+    struct Context;
+    std::unique_ptr<Context> ctx_;
 };
 
 }  // end namespace eckit
-
-#endif

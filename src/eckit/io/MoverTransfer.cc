@@ -17,22 +17,26 @@
 #include "eckit/net/Connector.h"
 #include "eckit/net/TCPServer.h"
 #include "eckit/net/TCPStream.h"
+#include "eckit/runtime/Metrics.h"
 #include "eckit/runtime/Monitor.h"
 #include "eckit/thread/AutoLock.h"
 #include "eckit/thread/Thread.h"
 #include "eckit/thread/ThreadControler.h"
-
+#include "eckit/value/Value.h"
 
 
 namespace eckit {
 
 //----------------------------------------------------------------------------------------------------------------------
 
-MoverTransfer::MoverTransfer(TransferWatcher& watcher) : watcher_(watcher) {}
+MoverTransfer::MoverTransfer(TransferWatcher& watcher) :
+    watcher_(watcher) {}
 
 MoverTransfer::~MoverTransfer() {}
 
 Length MoverTransfer::transfer(DataHandle& from, DataHandle& to) {
+
+    bool send_costs = true;
 
     if (!from.moveable())
         throw SeriousBug(from.title() + " is not moveable");
@@ -46,6 +50,7 @@ Length MoverTransfer::transfer(DataHandle& from, DataHandle& to) {
     if (cost.empty()) {
         NodeInfo info     = ClusterNodes::any("mover");
         cost[info.node()] = 0;
+        send_costs        = false;
         //        throw SeriousBug(std::string("No cost for ") + from.title() + " => " + to.title());
     }
 
@@ -60,7 +65,7 @@ Length MoverTransfer::transfer(DataHandle& from, DataHandle& to) {
     // This will close the connector on unlock
     c.autoclose(true);
 
-    Log::message() << c.host() << std::endl;
+    Log::message() << c.node() << std::endl;
     Stream& s = c;
 
     s << bool(false);  // New batch
@@ -82,6 +87,7 @@ Length MoverTransfer::transfer(DataHandle& from, DataHandle& to) {
     Log::status() << from.title() << " => " << to.title() << std::endl;
 
     Progress progress("mover", 0, estimate);
+    watcher_.watch(nullptr, 0);
     unsigned long long total = 0;
     bool more;
     s >> more;
@@ -89,16 +95,34 @@ Length MoverTransfer::transfer(DataHandle& from, DataHandle& to) {
         long pos;
         std::string msg;
         s >> pos;
-        s >> msg;
-        total += pos;
-        progress(total);
+        if (pos >= 0) {
+            s >> msg;
+            total += pos;
+            progress(total);
+            watcher_.watch(nullptr, total);
+        } else if (pos == -1) {
+            watcher_.fromHandleOpened();
+        } else if (pos == -2) {
+            watcher_.toHandleOpened();
+        }
         s >> more;
     }
 
     unsigned long long len;
     s >> len;
+    Metrics::receive(s);
 
-    //    ASSERT(len == total);
+
+    Metrics::set("mover_node", c.node());
+    if (send_costs) {
+        for (auto j = cost.begin(); j != cost.end(); ++j) {
+            std::string h        = (*j).first;
+            unsigned long long l = (*j).second;
+            Metrics::set("mover_costs." + h, l);
+        }
+    }
+    // Metrics::set("mover_metric", prefix_);
+    // //    ASSERT(len == total);
 
     Log::message() << " " << std::endl;
 

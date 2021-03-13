@@ -21,6 +21,8 @@ namespace eckit {
 //----------------------------------------------------------------------------------------------------------------------
 DateTime::DateTime(const Date& d, const Time& t) : date_(d), time_(t) {}
 
+DateTime::DateTime(const DateTime& other) : date_(other.date_), time_(other.time_) {}
+
 DateTime::DateTime(double julian) : date_(long(julian), true), time_((julian - long(julian)) * 24 * 60 * 60) {}
 
 DateTime::DateTime(const std::string& s) {
@@ -80,7 +82,7 @@ DateTime::DateTime(time_t thetime) {
 
     // prefer reentrant version ( gmtime_r )
 
-#ifdef ECKIT_HAVE_GMTIME_R
+#ifdef eckit_HAVE_GMTIME_R
     struct tm t;
     gmtime_r(&thetime, &t);
     long td   = (1900 + t.tm_year) * 10000 + (t.tm_mon + 1) * 100 + t.tm_mday;

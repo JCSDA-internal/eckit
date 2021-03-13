@@ -27,24 +27,22 @@ namespace system {
 
 class SystemInfoFreeBSD : public SystemInfo {
 
-public: // methods
-
-    virtual ~SystemInfoFreeBSD();
+public:  // methods
+    virtual ~SystemInfoFreeBSD() override;
 
     virtual eckit::LocalPathName executablePath() const;
 
     virtual MemoryInfo memoryUsage() const;
 
-protected: // methods
+    virtual std::string dynamicLibraryName(const std::string& name) const;
 
-private: // members
-
+protected:  // methods
+private:    // members
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
-} // namespace system
-} // namespace eckit
+}  // namespace system
+}  // namespace eckit
 
 #endif
-

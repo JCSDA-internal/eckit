@@ -24,24 +24,24 @@ class Offset;
 
 class TransferWatcher {
 public:
-
-// -- Methods
+    // -- Methods
 
     virtual void watch(const void*, long) = 0;
     virtual void restartFrom(const Offset&) {}
+    virtual void fromHandleOpened() {}
+    virtual void toHandleOpened() {}
 
     virtual ~TransferWatcher() {}
 
-// -- Class methods
+    // -- Class methods
 
     static TransferWatcher& dummy();
-
 };
 
 
 //-----------------------------------------------------------------------------
 
-} // namespace eckit
+}  // namespace eckit
 
 
 #endif

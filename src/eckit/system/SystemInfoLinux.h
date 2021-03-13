@@ -26,9 +26,8 @@ namespace system {
 
 class SystemInfoLinux : public SystemInfo {
 
-public: // methods
-
-    virtual ~SystemInfoLinux();
+public:  // methods
+    virtual ~SystemInfoLinux() override;
 
     virtual eckit::LocalPathName executablePath() const;
 
@@ -37,16 +36,15 @@ public: // methods
     virtual void dumpProcMemInfo(std::ostream&, const char* prepend = "") const;
     virtual void dumpSysMemInfo(std::ostream&, const char* prepend = "") const;
 
-protected: // methods
+    virtual std::string dynamicLibraryName(const std::string& name) const;
 
-private: // members
-
+protected:  // methods
+private:    // members
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
-} // namespace system
-} // namespace eckit
+}  // namespace system
+}  // namespace eckit
 
 #endif
-

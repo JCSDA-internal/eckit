@@ -30,7 +30,6 @@ struct MemoryInfo;
 
 class SystemInfo : private eckit::NonCopyable {
 public:  // methods
-
     static bool isBigEndian();
     static bool isLittleEndian();
 
@@ -38,9 +37,13 @@ public:  // methods
 
     static const SystemInfo& instance();
 
+    virtual std::string userName() const;
+
     virtual eckit::LocalPathName executablePath() const = 0;
 
     virtual MemoryInfo memoryUsage() const = 0;
+
+    virtual std::string dynamicLibraryName(const std::string& name) const = 0;
 
     virtual void dumpProcMemInfo(std::ostream&, const char* prepend = nullptr) const;
     virtual void dumpSysMemInfo(std::ostream&, const char* prepend = nullptr) const;

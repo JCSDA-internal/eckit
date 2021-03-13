@@ -11,14 +11,17 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 
 #include "eckit/bases/Loader.h"
+#include "eckit/config/Resource.h"
 #include "eckit/filesystem/LocalPathName.h"
 #include "eckit/filesystem/PathName.h"
 #include "eckit/log/OStreamTarget.h"
 #include "eckit/os/BackTrace.h"
 #include "eckit/runtime/Library.h"
 #include "eckit/runtime/Main.h"
+#include "eckit/system/LibraryManager.h"
 #include "eckit/system/SystemInfo.h"
 #include "eckit/thread/AutoLock.h"
 #include "eckit/thread/Mutex.h"
@@ -100,7 +103,33 @@ Main::Main(int argc, char** argv, const char* homeenv) :
         home_                = execHome;
     }
 
+    // n.b. instance_ must be set before call to eckit::Resource
+
     instance_ = this;
+
+    // Load the libraries configured to be dynamically loaded at runtime
+    // This may include eckit::Plugin libraries, but they must be identified by the filename (libname) not Plugin name
+    // Note this also works for non eckit::Plugin libraries
+    std::vector<std::string> libraries = Resource<std::vector<std::string>>("dynamicLibraries", {});
+    for (const std::string& library : libraries) {
+        void* h = system::LibraryManager::loadLibrary(library);
+        if(not h) {
+            std::ostringstream ss;
+            ss << "Library " << library << " not found";
+            Log::error() << ss.str() << std::endl;
+            throw SeriousBug(ss.str(), Here());
+        }
+    }
+
+    // Load eckit::Plugin libraries
+    std::vector<std::string> plugins = Resource<std::vector<std::string>>("$LOAD_PLUGINS;loadPlugins", {});
+    bool autoLoadPlugins             = Resource<bool>("$AUTO_LOAD_PLUGINS;autoLoadPlugins;-autoLoadPlugins", true);
+    if (autoLoadPlugins or plugins.size()) {
+        Log::debug() << "Configured to load plugins " << plugins << std::endl;
+        system::LibraryManager::autoLoadPlugins(plugins);
+    }
+
+    Log::debug() << "Application " << name_ << " loaded libraries: " << system::LibraryManager::list() << std::endl;
 
     Loader::callAll(&Loader::execute);
 }
@@ -200,6 +229,10 @@ LogTarget* Main::createErrorLogTarget() const {
 }
 
 LogTarget* Main::createDebugLogTarget() const {
+    return createDefaultLogTarget();
+}
+
+LogTarget* Main::createMetricsLogTarget() const {
     return createDefaultLogTarget();
 }
 

@@ -8,8 +8,9 @@
  * does it submit to any jurisdiction.
  */
 
-// File Tokenizer.h
-// Manuel Fuentes - ECMWF Jan 97
+/// @author Baudouin Raoult
+/// @author Manuel Fuentes
+/// @author Tiago Quintino
 
 #ifndef eckit_Tokenizer_h
 #define eckit_Tokenizer_h
@@ -22,20 +23,16 @@
 
 namespace eckit {
 
-//-----------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------
 
 class Tokenizer : private NonCopyable {
 
-public: // methods
-
-    /// Contructor
+public:  // methods
 
     Tokenizer(char, bool keepEmpty = false);
     Tokenizer(const std::string&, bool keepEmpty = false);
 
-    /// Destructor
-
-	~Tokenizer();
+    ~Tokenizer();
 
     void operator()(const std::string&, std::vector<std::string>&) const;
     void operator()(std::istream&, std::vector<std::string>&) const;
@@ -43,25 +40,40 @@ public: // methods
     void operator()(const std::string&, std::set<std::string>&) const;
     void operator()(std::istream&, std::set<std::string>&) const;
 
-private: // members
+    std::vector<std::string> tokenize(const std::string&) const;
+    std::vector<std::string> tokenize(std::istream&) const;
 
-    std::set<char,std::less<char> > separator_;     // To make searching faster
+private:
 
+    std::set<char, std::less<char> > separator_;  // To make searching faster
     bool keepEmpty_;
 
-private: // methods
+private:
 
-	void print(std::ostream&) const;
+    void print(std::ostream&) const;
 
-	friend std::ostream& operator<<(std::ostream& s,const Tokenizer& p) { p.print(s); return s; }
-
+    friend std::ostream& operator<<(std::ostream& s, const Tokenizer& p) {
+        p.print(s);
+        return s;
+    }
 };
 
+//---------------------------------------------------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
+inline std::vector<std::string> Tokenizer::tokenize(const std::string& s) const {
+    std::vector<std::string> r;
+    this->operator()(s, r);
+    return r;
+}
 
-} // namespace eckit
+inline std::vector<std::string> Tokenizer::tokenize(std::istream& s) const {
+    std::vector<std::string> r;
+    this->operator()(s, r);
+    return r;
+}
 
+//---------------------------------------------------------------------------------------------------------------------
 
+}  // namespace eckit
 
 #endif

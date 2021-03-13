@@ -14,6 +14,10 @@
 
 #include "SystemInfo.h"
 
+#include <pwd.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <memory>
 
 #include "eckit/eckit.h"
@@ -22,7 +26,6 @@
 #include "eckit/exception/Exceptions.h"
 #include "eckit/filesystem/LocalPathName.h"
 #include "eckit/memory/MMap.h"
-#include "eckit/memory/MemoryPool.h"
 #include "eckit/memory/Shmget.h"
 
 #if defined(__APPLE__) && defined(__MACH__)
@@ -80,6 +83,15 @@ const SystemInfo& SystemInfo::instance() {
     pthread_once(&once, createInstance);
     ASSERT(systemInfoPtr);
     return *systemInfoPtr;
+}
+
+std::string SystemInfo::userName() const {
+    char buf[4096];
+    struct passwd pwbuf;
+    struct passwd* pwbufp = nullptr;
+    SYSCALL(::getpwuid_r(::getuid(), &pwbuf, buf, sizeof(buf), &pwbufp));
+    ASSERT(pwbufp);
+    return std::string(pwbuf.pw_name);
 }
 
 void SystemInfo::dumpProcMemInfo(std::ostream& os, const char* prepend) const {

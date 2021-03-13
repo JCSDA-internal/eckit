@@ -20,8 +20,9 @@
 
 #include "eckit/eckit.h"
 #include "eckit/filesystem/PathName.h"
-#include "eckit/io/Offset.h"
 #include "eckit/io/Length.h"
+#include "eckit/io/Offset.h"
+#include "eckit/net/Endpoint.h"
 
 
 namespace eckit {
@@ -33,10 +34,12 @@ class DataHandle;
 
 class URI {
 
-public: // methods
-
-    friend Stream& operator<<(Stream& s,const URI& uri) { uri.encode(s); return s; }
-    friend void operator>>(Stream&,URI&);
+public:  // methods
+    friend Stream& operator<<(Stream& s, const URI& uri) {
+        uri.encode(s);
+        return s;
+    }
+    friend void operator>>(Stream&, URI&);
 
     // Contructors
     URI();
@@ -55,10 +58,14 @@ public: // methods
 
     bool exists() const;
 
-	DataHandle* newWriteHandle() const;
-	DataHandle* newReadHandle(const OffsetList&, const LengthList&) const;
-	DataHandle* newReadHandle() const;
+    DataHandle* newWriteHandle() const;
+    DataHandle* newReadHandle(const OffsetList&, const LengthList&) const;
+    DataHandle* newReadHandle() const;
 
+    void endpoint(const eckit::net::Endpoint& endpoint) {
+        host_ = endpoint.host();
+        port_ = endpoint.port();
+    }
     void host(const std::string& host) { host_ = host; }
     void port(int port) { port_ = port; }
     void path(const std::string& path) { name_ = path; }
@@ -70,9 +77,10 @@ public: // methods
     const std::string& user() const { return user_; }
     const std::string& host() const { return host_; }
     int port() const { return port_; }
-    PathName path() const { return PathName(name_); }
+    PathName path() const;
     const std::string& fragment() const { return fragment_; }
 
+    std::string hostport() const;
     std::string authority() const;
     std::string query() const;
     const std::string query(const std::string& attribute) const;
@@ -81,49 +89,41 @@ public: // methods
     std::string asRawString() const;
 
     bool operator!=(const URI& other) const {
-        return scheme_ != other.scheme_
-                || name_ != other.name_
-                || user_ != other.user_
-                || host_ != other.host_
-                || port_ != other.port_
-                || queryValues_ != other.queryValues_
-                || fragment_ != other.fragment_; }
+        return scheme_ != other.scheme_ || name_ != other.name_ || user_ != other.user_ || host_ != other.host_ ||
+               port_ != other.port_ || queryValues_ != other.queryValues_ || fragment_ != other.fragment_;
+    }
 
     bool operator==(const URI& other) const {
-        return scheme_ == other.scheme_
-                && name_ == other.name_
-                && user_ == other.user_
-                && host_ == other.host_
-                && port_ == other.port_
-                && queryValues_ == other.queryValues_
-                && fragment_ == other.fragment_; }
+        return scheme_ == other.scheme_ && name_ == other.name_ && user_ == other.user_ && host_ == other.host_ &&
+               port_ == other.port_ && queryValues_ == other.queryValues_ && fragment_ == other.fragment_;
+    }
 
-protected: // methods
-
-	void print(std::ostream&) const;
+protected:  // methods
+    void print(std::ostream&) const;
     void encode(Stream& s) const;
 
-private: // methods
-
-    size_t parseScheme(const std::string &uri);
+private:  // methods
+    size_t parseScheme(const std::string& uri);
     void parse(const std::string& uri, size_t first, bool authority, bool query, bool fragment);
     void parseQueryValues(const std::string& query);
 
-private: // members
-
+private:  // members
     std::string name_;
     std::string scheme_;
     std::string user_;
     std::string host_;
     int port_ = -1;
-    std::map<std::string, std::string> queryValues_;
     std::string fragment_;
+    std::map<std::string, std::string> queryValues_;
 
-    friend std::ostream& operator<<(std::ostream& s,const URI& p) { p.print(s); return s; }
+    friend std::ostream& operator<<(std::ostream& s, const URI& p) {
+        p.print(s);
+        return s;
+    }
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
-} // namespace eckit
+}  // namespace eckit
 
 #endif

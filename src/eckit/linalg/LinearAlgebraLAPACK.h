@@ -13,7 +13,7 @@
 
 #include "eckit/eckit.h"
 
-#ifdef ECKIT_HAVE_LAPACK
+#ifdef eckit_HAVE_LAPACK
 
 #include "eckit/linalg/LinearAlgebra.h"
 
@@ -24,11 +24,9 @@ namespace linalg {
 
 class LinearAlgebraLAPACK : public LinearAlgebra {
 public:
-
     LinearAlgebraLAPACK();
 
 private:
-
     // Overridden methods
 
     Scalar dot(const Vector&, const Vector&) const;
@@ -39,7 +37,6 @@ private:
     void dsptd(const Vector&, const SparseMatrix&, const Vector&, SparseMatrix&) const;
 
     void print(std::ostream&) const;
-
 };
 
 //-----------------------------------------------------------------------------
@@ -47,5 +44,5 @@ private:
 }  // namespace linalg
 }  // namespace eckit
 
-#endif  // ECKIT_HAVE_LAPACK
+#endif  // eckit_HAVE_LAPACK
 #endif
